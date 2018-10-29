@@ -53,6 +53,16 @@ func NewRepositoryClient(server Server) (*RepositoryClient, error) {
 	return &RepositoryClient{grpcClient}, nil
 }
 
+// NewNamespaceClient is only used by the Gitaly integration tests at present
+func NewNamespaceClient(server Server) (*NamespaceClient, error) {
+	conn, err := getOrCreateConnection(server)
+	if err != nil {
+		return nil, err
+	}
+	grpcClient := pb.NewNamespaceServiceClient(conn)
+	return &NamespaceClient{grpcClient}, nil
+}
+
 func NewDiffClient(server Server) (*DiffClient, error) {
 	conn, err := getOrCreateConnection(server)
 	if err != nil {
@@ -99,7 +109,7 @@ func CloseConnections() {
 
 func newConnection(server Server) (*grpc.ClientConn, error) {
 	connOpts := append(gitalyclient.DefaultDialOpts,
-		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials(server.Token)),
+		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(server.Token)),
 		grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(grpc_prometheus.StreamClientInterceptor, grpc_opentracing.StreamClientInterceptor())),
 		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(grpc_prometheus.UnaryClientInterceptor, grpc_opentracing.UnaryClientInterceptor())),
 	)

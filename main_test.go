@@ -18,19 +18,16 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/api"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/config"
-	"gitlab.com/gitlab-org/gitlab-workhorse/internal/git"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/gitaly"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/helper"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/testhelper"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/upstream"
-
-	pb "gitlab.com/gitlab-org/gitaly-proto/go"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 const scratchDir = "testdata/scratch"
@@ -43,8 +40,6 @@ var checkoutDir = path.Join(scratchDir, "test")
 var cacheDir = path.Join(scratchDir, "cache")
 
 func TestMain(m *testing.M) {
-	git.Testing = true
-
 	if _, err := os.Stat(path.Join(testRepoRoot, testRepo)); os.IsNotExist(err) {
 		log.Fatal("cannot find test repository. Please run 'make prepare-tests'")
 	}
@@ -56,46 +51,6 @@ func TestMain(m *testing.M) {
 	defer gitaly.CloseConnections()
 
 	os.Exit(m.Run())
-}
-
-func TestAllowedClone(t *testing.T) {
-	// Prepare clone directory
-	require.NoError(t, os.RemoveAll(scratchDir))
-
-	// Prepare test server and backend
-	ts := testAuthServer(nil, 200, gitOkBody(t))
-	defer ts.Close()
-	ws := startWorkhorseServer(ts.URL)
-	defer ws.Close()
-
-	// Do the git clone
-	cloneCmd := exec.Command("git", "clone", fmt.Sprintf("%s/%s", ws.URL, testRepo), checkoutDir)
-	runOrFail(t, cloneCmd)
-
-	// We may have cloned an 'empty' repository, 'git log' will fail in it
-	logCmd := exec.Command("git", "log", "-1", "--oneline")
-	logCmd.Dir = checkoutDir
-	runOrFail(t, logCmd)
-}
-
-func TestAllowedShallowClone(t *testing.T) {
-	// Prepare clone directory
-	require.NoError(t, os.RemoveAll(scratchDir))
-
-	// Prepare test server and backend
-	ts := testAuthServer(nil, 200, gitOkBody(t))
-	defer ts.Close()
-	ws := startWorkhorseServer(ts.URL)
-	defer ws.Close()
-
-	// Shallow git clone (depth 1)
-	cloneCmd := exec.Command("git", "clone", "--depth", "1", fmt.Sprintf("%s/%s", ws.URL, testRepo), checkoutDir)
-	runOrFail(t, cloneCmd)
-
-	// We may have cloned an 'empty' repository, 'git log' will fail in it
-	logCmd := exec.Command("git", "log", "-1", "--oneline")
-	logCmd.Dir = checkoutDir
-	runOrFail(t, logCmd)
 }
 
 func TestDeniedClone(t *testing.T) {
@@ -115,24 +70,7 @@ func TestDeniedClone(t *testing.T) {
 	assert.Error(t, err, "git clone should have failed")
 }
 
-func TestAllowedPush(t *testing.T) {
-	preparePushRepo(t)
-
-	// Prepare the test server and backend
-	ts := testAuthServer(nil, 200, gitOkBody(t))
-	defer ts.Close()
-	ws := startWorkhorseServer(ts.URL)
-	defer ws.Close()
-
-	// Perform the git push
-	pushCmd := exec.Command("git", "push", fmt.Sprintf("%s/%s", ws.URL, testRepo), fmt.Sprintf("master:%s", newBranch()))
-	pushCmd.Dir = checkoutDir
-	runOrFail(t, pushCmd)
-}
-
 func TestDeniedPush(t *testing.T) {
-	preparePushRepo(t)
-
 	// Prepare the test server and backend
 	ts := testAuthServer(nil, 403, "Access denied")
 	defer ts.Close()
@@ -573,12 +511,6 @@ func setupStaticFile(fpath, content string) error {
 func prepareDownloadDir(t *testing.T) {
 	require.NoError(t, os.RemoveAll(scratchDir))
 	require.NoError(t, os.MkdirAll(scratchDir, 0755))
-}
-
-func preparePushRepo(t *testing.T) {
-	require.NoError(t, os.RemoveAll(scratchDir))
-	cloneCmd := exec.Command("git", "clone", path.Join(testRepoRoot, testRepo), checkoutDir)
-	runOrFail(t, cloneCmd)
 }
 
 func newBranch() string {

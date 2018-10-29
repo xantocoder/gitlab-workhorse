@@ -1,7 +1,7 @@
 PREFIX=/usr/local
 PKG := gitlab.com/gitlab-org/gitlab-workhorse
-BUILD_DIR := $(CURDIR)
-TARGET_DIR := $(BUILD_DIR)/_build
+BUILD_DIR ?= $(CURDIR)
+TARGET_DIR ?= $(BUILD_DIR)/_build
 TARGET_SETUP := $(TARGET_DIR)/.ok
 BIN_BUILD_DIR := $(TARGET_DIR)/bin
 PKG_BUILD_DIR := $(TARGET_DIR)/src/$(PKG)
@@ -9,6 +9,7 @@ COVERAGE_DIR := $(TARGET_DIR)/cover
 VERSION := $(shell git describe)-$(shell date -u +%Y%m%d.%H%M%S)
 GOBUILD := go build -ldflags "-X main.Version=$(VERSION)"
 EXE_ALL := gitlab-zip-cat gitlab-zip-metadata gitlab-workhorse
+INSTALL := install
 
 MINIMUM_SUPPORTED_GO_VERSION := 1.8
 
@@ -37,7 +38,7 @@ $(TARGET_SETUP):
 	$(call message,"Setting up target directory")
 	rm -rf $(TARGET_DIR)
 	mkdir -p "$(dir $(PKG_BUILD_DIR))"
-	ln -sf ../../../.. "$(PKG_BUILD_DIR)"
+	ln -sf "$(CURDIR)" "$(PKG_BUILD_DIR)"
 	mkdir -p "$(BIN_BUILD_DIR)"
 	touch "$(TARGET_SETUP)"
 
@@ -57,7 +58,7 @@ gitlab-workhorse:	$(TARGET_SETUP) $(shell find . -name '*.go' | grep -v '^\./_')
 install:	gitlab-workhorse gitlab-zip-cat gitlab-zip-metadata
 	$(call message,$@)
 	mkdir -p $(DESTDIR)$(PREFIX)/bin/
-	cd $(BUILD_DIR) && install gitlab-workhorse gitlab-zip-cat gitlab-zip-metadata $(DESTDIR)$(PREFIX)/bin/
+	cd $(BUILD_DIR) && $(INSTALL) gitlab-workhorse gitlab-zip-cat gitlab-zip-metadata $(DESTDIR)$(PREFIX)/bin/
 
 .PHONY:	test
 test: $(TARGET_SETUP) prepare-tests
@@ -145,7 +146,7 @@ govendor-sync: $(TARGET_SETUP)
 .PHONY: fmt
 fmt: $(TARGET_SETUP) install-goimports
 	$(call message,$@)
-	@goimports -w -l $(LOCAL_GO_FILES)
+	@goimports -w -local $(PKG) -l $(LOCAL_GO_FILES)
 
 .PHONY:	goimports
 install-goimports:	$(TARGET_SETUP)

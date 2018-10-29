@@ -10,6 +10,7 @@ import (
 
 	"github.com/client9/reopen"
 	log "github.com/sirupsen/logrus"
+
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/helper"
 )
 
@@ -34,9 +35,10 @@ func prepareLoggingFile(logFile string) *reopen.FileWriter {
 }
 
 const (
-	jsonLogFormat = "json"
-	textLogFormat = "text"
-	noneLogType   = "none"
+	jsonLogFormat    = "json"
+	textLogFormat    = "text"
+	structuredFormat = "structured"
+	noneLogType      = "none"
 )
 
 type logConfiguration struct {
@@ -69,6 +71,10 @@ func startLogging(config logConfiguration) {
 		accessLogEntry = accessLogger.WithField("system", "http")
 
 		log.SetFormatter(&log.TextFormatter{})
+	case structuredFormat:
+		formatter := &log.TextFormatter{ForceColors: true, EnvironmentOverrideColors: true}
+		log.SetFormatter(formatter)
+		accessLogEntry = log.WithField("system", "http")
 	default:
 		log.WithField("logFormat", config.logFormat).Fatal("Unknown logFormat configured")
 	}

@@ -24,8 +24,8 @@ import (
 	"time"
 
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/config"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/log"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/queueing"
@@ -60,7 +60,7 @@ var logConfig = logConfiguration{}
 
 func init() {
 	flag.StringVar(&logConfig.logFile, "logFile", "", "Log file location")
-	flag.StringVar(&logConfig.logFormat, "logFormat", "text", "Log format to use defaults to text (text, json, none)")
+	flag.StringVar(&logConfig.logFormat, "logFormat", "text", "Log format to use defaults to text (text, json, structured, none)")
 }
 
 func main() {
