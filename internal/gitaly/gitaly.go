@@ -1,7 +1,11 @@
 package gitaly
 
 import (
+	"crypto/x509"
+	"os"
 	"sync"
+
+	"google.golang.org/grpc/credentials"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -101,6 +105,14 @@ func newConnection(server Server) (*grpc.ClientConn, error) {
 		grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
 		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
 	)
+
+	if tlsEnabled := os.Getenv("GITALY_TLS_ENABLED"); tlsEnabled == "true" {
+		certPool, err := x509.SystemCertPool()
+		if err == nil {
+			creds := credentials.NewClientTLSFromCert(certPool, "")
+			connOpts = append(connOpts, grpc.WithTransportCredentials(creds))
+		}
+	}
 
 	return gitalyclient.Dial(server.Address, connOpts)
 }
