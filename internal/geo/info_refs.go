@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"regexp"
 
-	log "github.com/sirupsen/logrus"
-
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/api"
 )
 
@@ -118,14 +116,4 @@ func processInfoRefsResponse(rawBody string) (string, error) {
 	}
 
 	return string(json), err
-}
-
-func logHTTPError(w http.ResponseWriter, err error, msg string) {
-	http.Error(w, msg, 500)
-
-	log.WithFields(log.Fields{
-		"msg":  msg,
-		"code": 500,
-		"err":  err,
-	}).Error("geo.logHTTPError")
 }
