@@ -7,6 +7,11 @@ type ProxyGitPushSSH struct {
 	// See GitlabShellCustomActionData below
 	CustomActionData *CustomActionData `json:"gitlab_shell_custom_action_data"`
 
+	// Output contains any necessary content from say a previous action
+	// e.g. for an /info/refs?service=git-receive-pack request, Output will
+	// contain that output which is utilised in geo.newPushRequest()
+	Output string `json:"gitlab_shell_output"`
+
 	// Authorization header content
 	Authorization string `json:"authorization"`
 }
