@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"regexp"
 
@@ -42,7 +41,7 @@ func ProxyGitPushSSHInfoRefs(a *api.API) http.Handler {
 			return
 		}
 
-		rawBody, err := makeInfoRefsCall(req)
+		rawBody, err := performRequest(req)
 		if err != nil {
 			logHTTPError(w, err, "Failed to GET info_refs from primary")
 			return
@@ -58,13 +57,6 @@ func ProxyGitPushSSHInfoRefs(a *api.API) http.Handler {
 	})
 }
 
-func parseRailsResponse(proxyGitPushSSH string) (*api.ProxyGitPushSSH, error) {
-	proxyGitPushSSHData := &api.ProxyGitPushSSH{CustomActionData: &api.CustomActionData{}}
-	err := json.Unmarshal([]byte(proxyGitPushSSH), proxyGitPushSSHData)
-
-	return proxyGitPushSSHData, err
-}
-
 func newInfoRefsRequest(proxyGitPushSSHData *api.ProxyGitPushSSH) (*http.Request, error) {
 	url := fmt.Sprintf("%s/info/refs?service=git-receive-pack", proxyGitPushSSHData.CustomActionData.PrimaryRepo)
 	req, err := http.NewRequest("GET", url, nil)
@@ -77,23 +69,6 @@ func newInfoRefsRequest(proxyGitPushSSHData *api.ProxyGitPushSSH) (*http.Request
 	req.Header.Set("Authorization", proxyGitPushSSHData.Authorization)
 
 	return req, nil
-}
-
-func makeInfoRefsCall(req *http.Request) (string, error) {
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-
-	rawBody, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	resp.Body.Close()
-
-	return string(rawBody), nil
 }
 
 // HTTP(S) and SSH responses are very similar, except for the fragment below.
