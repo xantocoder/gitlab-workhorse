@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -164,15 +165,20 @@ func rebaseUrl(url *url.URL, onto *url.URL, suffix string) *url.URL {
 	return &newUrl
 }
 
-func (api *API) newRequest(r *http.Request, suffix string) (*http.Request, error) {
+func (api *API) newRequest(r *http.Request, suffix string, body io.Reader) (*http.Request, error) {
 	authReq := &http.Request{
 		Method: r.Method,
 		URL:    rebaseUrl(r.URL, api.URL, suffix),
 		Header: helper.HeaderClone(r.Header),
 	}
 
+	if body != nil {
+		authReq.Body = ioutil.NopCloser(body)
+	} else {
+		authReq.Header.Del("Content-Type")
+	}
+
 	// Clean some headers when issuing a new request without body
-	authReq.Header.Del("Content-Type")
 	authReq.Header.Del("Content-Encoding")
 	authReq.Header.Del("Content-Length")
 	authReq.Header.Del("Content-Disposition")
@@ -217,7 +223,7 @@ func (api *API) newRequest(r *http.Request, suffix string) (*http.Request, error
 //
 // authResponse will only be present if the authorization check was successful
 func (api *API) PreAuthorize(suffix string, r *http.Request) (httpResponse *http.Response, authResponse *Response, outErr error) {
-	authReq, err := api.newRequest(r, suffix)
+	authReq, err := api.newRequest(r, suffix, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("PreAuthorize: newUpstreamRequest: %v", err)
 	}
@@ -254,6 +260,77 @@ func (api *API) PreAuthorize(suffix string, r *http.Request) (httpResponse *http
 func (api *API) PreAuthorizeHandler(next HandleFunc, suffix string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		httpResponse, authResponse, err := api.PreAuthorize(suffix, r)
+		if httpResponse != nil {
+			defer httpResponse.Body.Close()
+		}
+
+		if err != nil {
+			helper.Fail500(w, r, err)
+			return
+		}
+
+		// The response couldn't be interpreted as a valid auth response, so
+		// pass it back (mostly) unmodified
+		if httpResponse != nil && authResponse == nil {
+			passResponseBack(httpResponse, w, r)
+			return
+		}
+
+		httpResponse.Body.Close() // Free up the Unicorn worker
+
+		copyAuthHeader(httpResponse, w)
+
+		next(w, r, authResponse)
+	})
+}
+
+func (api *API) CustomAction(r *http.Request) (httpResponse *http.Response, authResponse *Response, outErr error) {
+	var body []byte
+	var err error
+
+	body, err = ioutil.ReadAll(r.Body)
+	if err != nil {
+		return nil, nil, fmt.Errorf("CustomAction: r.Body: %v", err)
+	}
+
+	authReq, err := api.newRequest(r, "", strings.NewReader(string(body)))
+
+	if err != nil {
+		return nil, nil, fmt.Errorf("CustomAction: newUpstreamRequest: %v", err)
+	}
+
+	httpResponse, err = api.doRequestWithoutRedirects(authReq)
+	if err != nil {
+		return nil, nil, fmt.Errorf("CustomAction: do request: %v", err)
+	}
+	defer func() {
+		if outErr != nil {
+			httpResponse.Body.Close()
+			httpResponse = nil
+		}
+	}()
+	requestsCounter.WithLabelValues(strconv.Itoa(httpResponse.StatusCode), authReq.Method).Inc()
+
+	// This may be a false positive, e.g. for .../info/refs, rather than a
+	// failure, so pass the response back
+	if httpResponse.StatusCode != http.StatusOK || !validResponseContentType(httpResponse) {
+		return httpResponse, nil, nil
+	}
+
+	// The auth backend validated the client request and told us additional
+	// request metadata. We must extract this information from the auth
+	// response body.
+	authResponse = &Response{}
+	if err := json.NewDecoder(httpResponse.Body).Decode(authResponse); err != nil {
+		return httpResponse, nil, fmt.Errorf("CustomAction: decode authorization response: %v", err)
+	}
+
+	return httpResponse, authResponse, nil
+}
+
+func (api *API) CustomActionHandler(next HandleFunc) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		httpResponse, authResponse, err := api.CustomAction(r)
 		if httpResponse != nil {
 			defer httpResponse.Body.Close()
 		}
