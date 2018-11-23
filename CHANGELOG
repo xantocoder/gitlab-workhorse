@@ -2,9 +2,17 @@
 
 Formerly known as 'gitlab-git-http-server'.
 
+v 7.0.1
+
+- Redact sensitive url params as in Rails
+
 v 7.0.0
 
 - Use the new Gitaly auth scheme (v2) !298
+
+v 6.1.2
+
+- Redact sensitive url params as in Rails
 
 v 6.1.1
 
@@ -22,7 +30,6 @@ v 5.2.0
 
 - Populate Git Protocol !276
 - Add support for GitConfigOptions required for git-receive-pack command !281
-
 
 v 5.1.0
 
