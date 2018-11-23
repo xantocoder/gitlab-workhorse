@@ -2,6 +2,10 @@
 
 Formerly known as 'gitlab-git-http-server'.
 
+v 6.1.2
+
+- Redact sensitive url params as in Rails
+
 v 6.1.1
 
 - Allow custom error messages to pass through to Rails !300
@@ -18,7 +22,6 @@ v 5.2.0
 
 - Populate Git Protocol !276
 - Add support for GitConfigOptions required for git-receive-pack command !281
-
 
 v 5.1.0
 
