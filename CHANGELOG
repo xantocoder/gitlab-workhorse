@@ -2,7 +2,7 @@
 
 Formerly known as 'gitlab-git-http-server'.
 
-UNRELEASED
+v 7.5.1
 
 - Rename correlation-id structured logging field to correlation_id !343
 
