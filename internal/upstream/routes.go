@@ -11,6 +11,7 @@ import (
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/artifacts"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/builds"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/filestore"
+	"gitlab.com/gitlab-org/gitlab-workhorse/internal/geo"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/git"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/helper"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/lfs"
@@ -177,6 +178,9 @@ func (u *upstream) configureRoutes() {
 
 		// Maven Artifact Repository
 		route("PUT", apiPattern+`v4/projects/[0-9]+/packages/maven/`, filestore.BodyUploader(api, proxy, nil)),
+
+		// Geo git push to secondary (for SSH)
+		route("POST", apiPattern+`v4/geo/proxy_git_push_ssh/info_refs\z`, geo.ProxyGitPushSSHInfoRefs(api)),
 
 		// Explicitly proxy API requests
 		route("", apiPattern, proxy),

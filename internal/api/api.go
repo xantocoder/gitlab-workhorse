@@ -134,6 +134,8 @@ type Response struct {
 	Repository pb.Repository
 	// For git-http, does the requestor have the right to view all refs?
 	ShowAllRefs bool
+	// Supporting data for proxying HTTP reqs from secondary to primary
+	ProxyGitPushSSH string `json:"proxy_git_push_ssh"`
 }
 
 // singleJoiningSlash is taken from reverseproxy.go:NewSingleHostReverseProxy
