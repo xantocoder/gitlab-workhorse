@@ -219,12 +219,12 @@ func (api *API) newRequest(r *http.Request, suffix string) (*http.Request, error
 func (api *API) PreAuthorize(suffix string, r *http.Request) (httpResponse *http.Response, authResponse *Response, outErr error) {
 	authReq, err := api.newRequest(r, suffix)
 	if err != nil {
-		return nil, nil, fmt.Errorf("preAuthorizeHandler newUpstreamRequest: %v", err)
+		return nil, nil, fmt.Errorf("PreAuthorize: newUpstreamRequest: %v", err)
 	}
 
 	httpResponse, err = api.doRequestWithoutRedirects(authReq)
 	if err != nil {
-		return nil, nil, fmt.Errorf("preAuthorizeHandler: do request: %v", err)
+		return nil, nil, fmt.Errorf("PreAuthorize: do request: %v", err)
 	}
 	defer func() {
 		if outErr != nil {
@@ -245,7 +245,7 @@ func (api *API) PreAuthorize(suffix string, r *http.Request) (httpResponse *http
 	// request metadata. We must extract this information from the auth
 	// response body.
 	if err := json.NewDecoder(httpResponse.Body).Decode(authResponse); err != nil {
-		return httpResponse, nil, fmt.Errorf("preAuthorizeHandler: decode authorization response: %v", err)
+		return httpResponse, nil, fmt.Errorf("PreAuthorize: decode authorization response: %v", err)
 	}
 
 	return httpResponse, authResponse, nil
