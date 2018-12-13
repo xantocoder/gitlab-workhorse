@@ -181,6 +181,7 @@ func (u *upstream) configureRoutes() {
 
 		// Geo git push to secondary (for SSH)
 		route("POST", apiPattern+`v4/geo/proxy_git_push_ssh/info_refs\z`, geo.ProxyGitPushSSHInfoRefs(api)),
+		route("POST", apiPattern+`v4/geo/proxy_git_push_ssh/push\z`, geo.ProxyGitPushSSHPush(api)),
 
 		// Explicitly proxy API requests
 		route("", apiPattern, proxy),
