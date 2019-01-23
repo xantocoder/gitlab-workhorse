@@ -2,6 +2,10 @@
 
 Formerly known as 'gitlab-git-http-server'.
 
+v 7.1.4
+
+- Sign LFS upload requests that have been handled by workhorse
+
 v 7.1.3
 
 - Redact sensitive url params as in Rails
