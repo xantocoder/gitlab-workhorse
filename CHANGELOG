@@ -2,6 +2,10 @@
 
 Formerly known as 'gitlab-git-http-server'.
 
+v 7.6.1
+
+- Sign LFS upload requests that have been handled by workhorse
+
 v 7.6.0
 
 - Rename correlation-id structured logging field to correlation_id !343
