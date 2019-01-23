@@ -2,6 +2,10 @@
 
 Formerly known as 'gitlab-git-http-server'.
 
+v 8.1.1
+
+- Sign LFS upload requests that have been handled by workhorse
+
 v 8.1.0
 
 - Upgrade the gitaly client to v1.13.0 (includes TLS support) !351
