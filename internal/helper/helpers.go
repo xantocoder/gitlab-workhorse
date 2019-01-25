@@ -38,6 +38,14 @@ func Fail500(w http.ResponseWriter, r *http.Request, err error) {
 	CaptureAndFail(w, r, err, "Internal server error", http.StatusInternalServerError)
 }
 
+func Fail422(w http.ResponseWriter, r *http.Request, err error) {
+	CaptureAndFail(w, r, err, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
+}
+
+func Fail400(w http.ResponseWriter, r *http.Request, err error) {
+	CaptureAndFail(w, r, err, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+}
+
 func RequestEntityTooLarge(w http.ResponseWriter, r *http.Request, err error) {
 	CaptureAndFail(w, r, err, "Request Entity Too Large", http.StatusRequestEntityTooLarge)
 }
@@ -282,4 +290,21 @@ func isParamSensitive(name []byte) bool {
 		}
 	}
 	return false
+}
+
+func NormalizedHostname(hostport string) string {
+	host, _, err := net.SplitHostPort(hostport)
+	if err != nil {
+		host = hostport
+	}
+
+	return strings.ToLower(host)
+}
+
+func MatchDomain(host string, domainSuffix string) bool {
+	return strings.HasSuffix(NormalizedHostname(host), NormalizedHostname(domainSuffix))
+}
+
+func ExactDomain(host string, domain string) bool {
+	return NormalizedHostname(host) == NormalizedHostname(domain)
 }

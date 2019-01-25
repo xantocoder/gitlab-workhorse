@@ -25,6 +25,7 @@ import (
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/senddata"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/sendfile"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/sendurl"
+	"gitlab.com/gitlab-org/gitlab-workhorse/internal/serviceproxy"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/staticpages"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/upload"
 )
@@ -111,6 +112,12 @@ func isContentType(contentType string) func(*http.Request) bool {
 	}
 }
 
+func isForDomain(domainSuffix string) func(*http.Request) bool {
+	return func(r *http.Request) bool {
+		return helper.MatchDomain(r.Host, domainSuffix)
+	}
+}
+
 func (ro *routeEntry) isMatch(cleanedPath string, req *http.Request) bool {
 	if ro.method != "" && req.Method != ro.method {
 		return false
@@ -159,6 +166,7 @@ func (u *upstream) configureRoutes() {
 
 	static := &staticpages.Static{DocumentRoot: u.DocumentRoot}
 	proxy := buildProxy(u.Backend, u.Version, u.RoundTripper)
+	buildServiceProxy := serviceproxy.New(api, u.UserContentDomain)
 
 	signingTripper := secret.NewRoundTripper(u.RoundTripper, u.Version)
 	signingProxy := buildProxy(u.Backend, u.Version, signingTripper)
@@ -228,6 +236,16 @@ func (u *upstream) configureRoutes() {
 		route("", "^/-/", defaultUpstream),
 
 		route("", "", defaultUpstream),
+	}
+
+	// Prepend the service proxy routes if the user content domain exists
+	if u.UserContentDomain != "" {
+		serviceProxyRoutes := []routeEntry{
+			route("", "", buildServiceProxy, withMatcher(isForDomain(buildServiceProxy.ProxyDomain))),
+		}
+
+		// Leave the custom domain routes first
+		u.Routes = append(serviceProxyRoutes, u.Routes...)
 	}
 }
 

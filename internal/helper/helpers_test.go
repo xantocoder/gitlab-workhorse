@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -182,5 +183,152 @@ func TestScrubURLParams(t *testing.T) {
 	} {
 		after := ScrubURLParams(before)
 		assert.Equal(t, expected, after, "Scrubbing %q", before)
+	}
+}
+
+func TestNormalizeHostname(t *testing.T) {
+	domain := "example.com"
+
+	tests := []struct {
+		name           string
+		host           string
+		expectedResult string
+	}{
+		{
+			name:           "With host port domain",
+			host:           domain + ":1234",
+			expectedResult: domain,
+		}, {
+			name:           "With host port domain in uppercase",
+			host:           strings.ToUpper(domain) + ":1234",
+			expectedResult: domain,
+		}, {
+			name:           "With only host domain",
+			host:           domain,
+			expectedResult: domain,
+		}, {
+			name:           "With only domain in uppercase",
+			host:           strings.ToUpper(domain),
+			expectedResult: domain,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expectedResult, NormalizedHostname(test.host))
+		})
+	}
+}
+
+func TestMatchDomain(t *testing.T) {
+	domain := "example.com"
+
+	tests := []struct {
+		name           string
+		testDomain     string
+		mainDomain     string
+		expectedResult bool
+	}{
+		{
+			name:           "both domains are equals",
+			testDomain:     domain,
+			mainDomain:     domain,
+			expectedResult: true,
+		}, {
+			name:           "both domains but test domain is uppercase",
+			testDomain:     strings.ToUpper(domain),
+			mainDomain:     domain,
+			expectedResult: true,
+		}, {
+			name:           "both domains but main domain is uppercase",
+			testDomain:     domain,
+			mainDomain:     strings.ToUpper(domain),
+			expectedResult: true,
+		}, {
+			name:           "test domain includes port",
+			testDomain:     domain + ":1234",
+			mainDomain:     domain,
+			expectedResult: true,
+		}, {
+			name:           "main domain includes port",
+			testDomain:     domain,
+			mainDomain:     domain + ":1234",
+			expectedResult: true,
+		}, {
+			name:           "test domain is a subdomain",
+			testDomain:     "foo." + domain,
+			mainDomain:     domain,
+			expectedResult: true,
+		}, {
+			name:           "test domain is a sub-subdomain",
+			testDomain:     "foo.bar." + domain,
+			mainDomain:     domain,
+			expectedResult: true,
+		}, {
+			name:           "domains are different",
+			testDomain:     "foo.bar.com",
+			mainDomain:     domain,
+			expectedResult: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expectedResult, MatchDomain(test.testDomain, test.mainDomain))
+		})
+	}
+}
+
+func TestExactDomain(t *testing.T) {
+	domain := "example.com"
+
+	tests := []struct {
+		name           string
+		testDomain     string
+		mainDomain     string
+		expectedResult bool
+	}{
+		{
+			name:           "both domains are equals",
+			testDomain:     domain,
+			mainDomain:     domain,
+			expectedResult: true,
+		}, {
+			name:           "both domains but test domain is uppercase",
+			testDomain:     strings.ToUpper(domain),
+			mainDomain:     domain,
+			expectedResult: true,
+		}, {
+			name:           "both domains but main domain is uppercase",
+			testDomain:     domain,
+			mainDomain:     strings.ToUpper(domain),
+			expectedResult: true,
+		}, {
+			name:           "test domain includes port",
+			testDomain:     domain + ":1234",
+			mainDomain:     domain,
+			expectedResult: true,
+		}, {
+			name:           "main domain includes port",
+			testDomain:     domain,
+			mainDomain:     domain + ":1234",
+			expectedResult: true,
+		}, {
+			name:           "test domain is a subdomain",
+			testDomain:     "foo." + domain,
+			mainDomain:     domain,
+			expectedResult: false,
+		}, {
+			name:           "domains are different",
+			testDomain:     "foo.bar.com",
+			mainDomain:     domain,
+			expectedResult: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expectedResult, ExactDomain(test.testDomain, test.mainDomain))
+		})
 	}
 }

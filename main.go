@@ -56,6 +56,7 @@ var apiQueueTimeout = flag.Duration("apiQueueDuration", queueing.DefaultTimeout,
 var apiCiLongPollingDuration = flag.Duration("apiCiLongPollingDuration", 50, "Long polling duration for job requesting for runners (default 50s - enabled)")
 
 var prometheusListenAddr = flag.String("prometheusListenAddr", "", "Prometheus listening address, e.g. 'localhost:9229'")
+var userContentDomain = flag.String("userContentDomain", "", "Domain used for user content requests")
 
 var logConfig = logConfiguration{}
 
@@ -135,6 +136,7 @@ func main() {
 		APIQueueLimit:            *apiQueueLimit,
 		APIQueueTimeout:          *apiQueueTimeout,
 		APICILongPollingDuration: *apiCiLongPollingDuration,
+		UserContentDomain:        *userContentDomain,
 	}
 
 	if *configFile != "" {

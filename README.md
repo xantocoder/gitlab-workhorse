@@ -72,6 +72,8 @@ Options:
       How long to wait for response headers when proxying the request (default 5m0s)
   -secretPath string
       File with secret key to authenticate with authBackend (default "./.gitlab_workhorse_secret")
+  -userContentDomain string
+    	Domain used for user content requests
   -version
       Print version and exit
 ```
@@ -146,6 +148,11 @@ the `authBackend` setting:
 ```
 gitlab-workhorse -authBackend http://localhost:8080/gitlab
 ```
+
+### User content requests support
+
+For security reasons, some user requests related will be served using a different domain. `userContentDomain` specifies
+which will be that domain. Defaults to `127.0.0.1.xip.io`.
 
 ## Installation
 

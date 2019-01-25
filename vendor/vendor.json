@@ -145,6 +145,18 @@
 			"versionExact": "v2.0.0"
 		},
 		{
+			"checksumSHA1": "NScdwrIOpSH9hoP7i3a6JGmE5rw=",
+			"path": "github.com/gorilla/securecookie",
+			"revision": "e65cf8c5df817c89aeb47ecb46064e802e2de943",
+			"revisionTime": "2018-10-10T17:46:47Z"
+		},
+		{
+			"checksumSHA1": "csomktSHfKVMLgh9B6nikPxd6sk=",
+			"path": "github.com/gorilla/sessions",
+			"revision": "12bd4761fc66ac946e16fcc2a32b1e0b066f6177",
+			"revisionTime": "2018-12-08T21:45:19Z"
+		},
+		{
 			"checksumSHA1": "VKx/YhlIAbIJ9dXAxCCHOkjom4U=",
 			"comment": "v1.0.0-39-ge8f0f8a",
 			"path": "github.com/gorilla/websocket",
