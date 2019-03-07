@@ -15,6 +15,7 @@ import (
 	"syscall"
 
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/log"
+	"gitlab.com/gitlab-org/gitlab-workhorse/internal/sentry"
 )
 
 const NginxResponseBufferHeader = "X-Accel-Buffering"
@@ -22,7 +23,7 @@ const NginxResponseBufferHeader = "X-Accel-Buffering"
 func Fail500(w http.ResponseWriter, r *http.Request, err error) {
 	http.Error(w, "Internal server error", 500)
 	if err != nil {
-		captureRavenError(r, err)
+		sentry.CaptureError(r, err)
 	}
 
 	printError(r, err)
@@ -30,7 +31,7 @@ func Fail500(w http.ResponseWriter, r *http.Request, err error) {
 
 func LogError(r *http.Request, err error) {
 	if err != nil {
-		captureRavenError(r, err)
+		sentry.CaptureError(r, err)
 	}
 
 	printError(r, err)
@@ -38,7 +39,7 @@ func LogError(r *http.Request, err error) {
 
 func RequestEntityTooLarge(w http.ResponseWriter, r *http.Request, err error) {
 	http.Error(w, "Request Entity Too Large", http.StatusRequestEntityTooLarge)
-	captureRavenError(r, err)
+	sentry.CaptureError(r, err)
 	printError(r, err)
 }
 

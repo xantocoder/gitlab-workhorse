@@ -33,6 +33,7 @@ import (
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/queueing"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/redis"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/secret"
+	"gitlab.com/gitlab-org/gitlab-workhorse/internal/sentry"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/upstream"
 )
 
@@ -152,11 +153,15 @@ func main() {
 		}
 	}
 
-	up := wrapRaven(
+	up := sentry.Wrap(
 		correlation.InjectCorrelationID(
 			upstream.NewUpstream(cfg),
 			correlation.WithSetResponseHeader(),
 		),
+		// Use a custom environment variable (not SENTRY_DSN) to prevent
+		// clashes with gitlab-rails.
+		sentry.WithEnvScopedDSN("GITLAB_WORKHORSE"),
+		sentry.WithRelease(Version),
 	)
 
 	logger.Fatal(http.Serve(listener, up))

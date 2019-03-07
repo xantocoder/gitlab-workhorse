@@ -1,10 +1,10 @@
-package helper
+package sentry
 
 import (
 	"net/http"
 	"reflect"
 
-	raven "github.com/getsentry/raven-go"
+	"github.com/getsentry/raven-go"
 
 	correlation "gitlab.com/gitlab-org/labkit/correlation/raven"
 )
@@ -14,13 +14,13 @@ var ravenHeaderBlacklist = []string{
 	"Private-Token",
 }
 
-func captureRavenError(r *http.Request, err error) {
+func CaptureError(r *http.Request, err error) {
 	client := raven.DefaultClient
 	extra := raven.Extra{}
 
 	interfaces := []raven.Interface{}
 	if r != nil {
-		CleanHeadersForRaven(r)
+		cleanHeadersForRaven(r)
 		interfaces = append(interfaces, raven.NewHttp(r))
 
 		extra = correlation.SetExtra(r.Context(), extra)
@@ -37,7 +37,7 @@ func captureRavenError(r *http.Request, err error) {
 	client.Capture(packet, nil)
 }
 
-func CleanHeadersForRaven(r *http.Request) {
+func cleanHeadersForRaven(r *http.Request) {
 	if r == nil {
 		return
 	}
