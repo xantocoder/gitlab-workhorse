@@ -80,7 +80,7 @@ func TestSuccessOverrideContentHeadersFeatureEnabled(t *testing.T) {
 	httpHeaders := map[string]string{
 		headers.ContentTypeHeader:        "image/png",
 		headers.ContentDispositionHeader: "inline",
-		"Range": "bytes=1-2",
+		"Range":                          "bytes=1-2",
 	}
 
 	resp := makeRequest(t, fixturePath, httpHeaders)
