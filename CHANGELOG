@@ -2,6 +2,10 @@
 
 Formerly known as 'gitlab-git-http-server'.
 
+v 8.0.3
+
+- Remove EXIF from JPEG/TIFF images
+
 v 8.0.2
 
 - Fixed svg recognition to get the proper content type !353
