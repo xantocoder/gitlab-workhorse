@@ -1,6 +1,7 @@
 image: golang:1.10
 
 verify:
+  image: golang:1.11
   script:
   - make verify
 
