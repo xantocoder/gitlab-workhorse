@@ -135,8 +135,8 @@ check-formatting: $(TARGET_SETUP) install-goimports
 .PHONY: megacheck
 megacheck: $(TARGET_SETUP) govendor-sync
 	$(call message,Verify: $@)
-	@command -v megacheck || go get -v honnef.co/go/tools/cmd/megacheck
-	@megacheck -go $(MINIMUM_SUPPORTED_GO_VERSION) -simple.exit-non-zero -unused.exit-non-zero -staticcheck.exit-non-zero $(LOCAL_PACKAGES)
+	@command -v megacheck || _support/install-megacheck.sh
+	@env megacheck -go $(MINIMUM_SUPPORTED_GO_VERSION) -simple.exit-non-zero -unused.exit-non-zero -staticcheck.exit-non-zero $(LOCAL_PACKAGES)
 
 # Some vendor components, used for testing are GPL, so we don't distribute them
 # and need to go a sync before using them

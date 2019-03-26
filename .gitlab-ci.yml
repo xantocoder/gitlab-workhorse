@@ -1,6 +1,7 @@
 image: golang:1.10
 
 verify:
+  image: golang:1.11
   script:
   - make verify
 
@@ -8,12 +9,13 @@ verify:
   services:
     - name: registry.gitlab.com/gitlab-org/build/cng/gitaly:latest
       # Disable the hooks so we don't have to stub the GitLab API
-      command: ["bash", "-c", "mkdir -p /home/git/repositories && rm -rf /srv/gitlab-shell/hooks/* && exec /scripts/process-wrapper"]
+      command: ["bash", "-c", "mkdir -p /home/git/repositories && rm -rf /srv/gitlab-shell/hooks/* && exec /usr/bin/env GITALY_TESTING_NO_GIT_HOOKS=1 /scripts/process-wrapper"]
       alias: gitaly
   variables:
     GITALY_ADDRESS: "tcp://gitaly:8075"
   script:
   - go version
+  - apt-get update && apt-get -y install libimage-exiftool-perl
   - make test
 
 test using go 1.10:
