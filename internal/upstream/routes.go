@@ -105,6 +105,12 @@ func isContentType(contentType string) func(*http.Request) bool {
 	}
 }
 
+func isDockerAgent() func(*http.Request) bool {
+	return func(r *http.Request) bool {
+		return compileRegexp(`^docker\/*`).MatchString(r.Header.Get("User-Agent"))
+	}
+}
+
 func (ro *routeEntry) isMatch(cleanedPath string, req *http.Request) bool {
 	if ro.method != "" && req.Method != ro.method {
 		return false
@@ -181,7 +187,7 @@ func (u *upstream) configureRoutes() {
 		route("PUT", apiPattern+`v4/projects/[0-9]+/packages/maven/`, filestore.BodyUploader(api, proxy, nil)),
 
 		// Dependency Proxy for Containers
-		route("GET", dockerClientPattern, docker.Rewriter(proxy)),
+		route("GET", dockerClientPattern, docker.Rewriter(proxy), withMatcher(isDockerAgent())),
 
 		// Explicitly proxy API requests
 		route("", apiPattern, proxy),
