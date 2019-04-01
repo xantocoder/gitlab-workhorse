@@ -28,5 +28,5 @@ func TestDockerClientRewriteRule(t *testing.T) {
 	rewriter := Rewriter(proxy)
 
 	rewriter.ServeHTTP(response, request)
-	assert.Contains(t, request.URL.Path, "my/path")
+	assert.Contains(t, request.URL.Path, "/my/awesome/request")
 }
