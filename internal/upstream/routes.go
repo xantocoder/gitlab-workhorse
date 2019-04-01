@@ -40,11 +40,11 @@ type routeOptions struct {
 }
 
 const (
-	apiPattern        = `^/api/`
-	ciAPIPattern      = `^/ci/api/`
-	gitProjectPattern = `^/([^/]+/){1,}[^/]+\.git/`
-	projectPattern    = `^/([^/]+/){1,}[^/]+/`
-	dockerPattern     = `^/v2/`
+	apiPattern          = `^/api/`
+	ciAPIPattern        = `^/ci/api/`
+	gitProjectPattern   = `^/([^/]+/){1,}[^/]+\.git/`
+	projectPattern      = `^/([^/]+/){1,}[^/]+/`
+	dockerClientPattern = `^/v2/`
 )
 
 func compileRegexp(regexpStr string) *regexp.Regexp {
@@ -179,9 +179,8 @@ func (u *upstream) configureRoutes() {
 		// Maven Artifact Repository
 		route("PUT", apiPattern+`v4/projects/[0-9]+/packages/maven/`, filestore.BodyUploader(api, proxy, nil)),
 
-    // Dependency Proxy for Containers
-    // TODO: How remove 'v2' prefix from URL???
-    route("GET", dockerPattern, ????)
+		// Dependency Proxy for Containers
+		route("GET", dockerClientPattern, docker.Rewriter(proxy)),
 
 		// Explicitly proxy API requests
 		route("", apiPattern, proxy),
