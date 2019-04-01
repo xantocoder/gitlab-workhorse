@@ -10,6 +10,7 @@ import (
 	apipkg "gitlab.com/gitlab-org/gitlab-workhorse/internal/api"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/artifacts"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/builds"
+	"gitlab.com/gitlab-org/gitlab-workhorse/internal/docker"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/filestore"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/git"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/helper"
