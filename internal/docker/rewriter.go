@@ -14,5 +14,5 @@ func Rewriter(proxy http.Handler) http.Handler {
 }
 
 func rewrite(path string) string {
-	return "rewrite/v2"
+	return strings.Replace(path, "v2", "my/path", 1)
 }
