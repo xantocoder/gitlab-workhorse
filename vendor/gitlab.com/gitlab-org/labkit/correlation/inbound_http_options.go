@@ -2,8 +2,7 @@ package correlation
 
 // The configuration for InjectCorrelationID
 type inboundHandlerConfig struct {
-	propagation        bool
-	sendResponseHeader bool
+	propagation bool
 }
 
 // InboundHandlerOption will configure a correlation handler
@@ -28,13 +27,5 @@ func applyInboundHandlerOptions(opts []InboundHandlerOption) inboundHandlerConfi
 func WithPropagation() InboundHandlerOption {
 	return func(config *inboundHandlerConfig) {
 		config.propagation = true
-	}
-}
-
-// WithSetResponseHeader will configure the handler to set the correlation_id
-// in the http response headers
-func WithSetResponseHeader() InboundHandlerOption {
-	return func(config *inboundHandlerConfig) {
-		config.sendResponseHeader = true
 	}
 }
