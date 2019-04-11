@@ -5,6 +5,7 @@ In this file we handle 'git archive' downloads
 package git
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -34,7 +35,7 @@ type archiveParams struct {
 	GitalyServer      gitaly.Server
 	GitalyRepository  gitalypb.Repository
 	DisableCache      bool
-	GetArchiveRequest []byte
+	GetArchiveRequest json.RawMessage
 }
 
 var (
