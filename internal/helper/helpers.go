@@ -248,13 +248,13 @@ func ScrubURLParams(originalURL string) string {
 
 func DecodeMd5Checksum(etag string) ([]byte, error) {
 	if len(etag) != Md5Length {
-		return []byte(""), errors.New("Length is not valid for MD5")
+		return []byte(""), errors.New("length is not valid for MD5")
 	}
 
 	checksum, err := hex.DecodeString(etag)
 
 	if err != nil {
-		return []byte(""), errors.New("ETag is not hexadecimal string")
+		return []byte(""), errors.New("etag is not hexadecimal string")
 	}
 
 	return checksum, nil
