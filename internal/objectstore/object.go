@@ -2,6 +2,7 @@ package objectstore
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -37,6 +38,8 @@ var httpClient = &http.Client{
 }
 
 type StatusCodeError error
+
+const md5ETagLength = 32
 
 // Object represents an object on a S3 compatible Object Store service.
 // It can be used as io.WriteCloser for uploading an object
@@ -125,13 +128,35 @@ func newObject(ctx context.Context, putURL, deleteURL string, putHeaders map[str
 		}
 
 		o.extractETag(resp.Header.Get("ETag"))
-		if o.etag != o.md5Sum() {
-			o.uploadError = fmt.Errorf("ETag mismatch. expected %q got %q", o.md5Sum(), o.etag)
+		if !IsValidETag(o.md5Sum(), o.etag) {
+			o.uploadError = fmt.Errorf("Invalid ETag: expected %q got %q", o.md5Sum(), o.etag)
 			return
 		}
 	}()
 
 	return o, nil
+}
+
+// From https://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadComplete.html:
+//
+// The entity tag is an opaque string. The entity tag may or may not be
+// an MD5 digest of the object data. If the entity tag is not an MD5
+// digest of the object data, it will contain one or more nonhexadecimal
+// characters and/or will consist of less than 32 or more than 32
+// hexadecimal digits.
+func IsValidETag(expectedETag string, receivedETag string) bool {
+	if len(receivedETag) != md5ETagLength {
+		return true
+	}
+
+	_, err := hex.DecodeString(receivedETag)
+
+	// Not a hex string, so consider this a valid string
+	if err != nil {
+		return true
+	}
+
+	return expectedETag == receivedETag
 }
 
 func (o *Object) delete() {
