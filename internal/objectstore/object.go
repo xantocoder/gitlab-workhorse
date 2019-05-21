@@ -2,7 +2,6 @@ package objectstore
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -142,12 +141,9 @@ func newObject(ctx context.Context, putURL, deleteURL string, putHeaders map[str
 // digest of the object data, it will contain one or more nonhexadecimal
 // characters and/or will consist of less than 32 or more than 32
 // hexadecimal digits.
-func IsValidETag(expectedETag string, receivedETag string) bool {
-	if len(receivedETag) != helper.Md5ETagLength {
-		return true
-	}
 
-	_, err := hex.DecodeString(receivedETag)
+func IsValidETag(expectedETag string, receivedETag string) bool {
+	_, err := helper.DecodeMd5Checksum(receivedETag)
 
 	// Not a hex string, so consider this a valid string
 	if err != nil {

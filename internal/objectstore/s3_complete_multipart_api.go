@@ -62,14 +62,11 @@ func (c *compoundCompleteMultipartUploadResult) isError() bool {
 func (cmu *CompleteMultipartUpload) BuildMultipartUploadETag() (string, error) {
 	hasher := md5.New()
 	for _, part := range cmu.Part {
-		if len(part.ETag) != helper.Md5ETagLength {
+		checksum, err := helper.DecodeMd5Checksum(part.ETag)
+		if err != nil {
 			return "", nil
 		}
 
-		checksum, err := hex.DecodeString(part.ETag)
-		if err != nil {
-			return "", err
-		}
 		_, err = hasher.Write(checksum)
 		if err != nil {
 			return "", err

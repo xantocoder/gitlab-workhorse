@@ -2,6 +2,7 @@ package helper
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"io/ioutil"
 	"mime"
@@ -243,6 +244,20 @@ func ScrubURLParams(originalURL string) string {
 	}
 	u.RawQuery = buf.String()
 	return u.String()
+}
+
+func DecodeMd5Checksum(etag string) ([]byte, error) {
+	if len(etag) != Md5ETagLength {
+		return []byte(""), errors.New("Length is not valid for MD5")
+	}
+
+	checksum, err := hex.DecodeString(etag)
+
+	if err != nil {
+		return []byte(""), errors.New("ETag is not hexadecimal string")
+	}
+
+	return checksum, nil
 }
 
 // Remember to keep in sync with Rails' filter_parameters
