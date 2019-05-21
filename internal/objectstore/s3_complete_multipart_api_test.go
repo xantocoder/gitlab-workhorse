@@ -20,3 +20,16 @@ func TestMultipartUploadETag(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, expectedETag, etag)
 }
+
+func TestMultipartUploadOpaqueETag(t *testing.T) {
+	cmu := CompleteMultipartUpload{
+		Part: []*completeMultipartUploadPart{
+			{PartNumber: 1, ETag: "550cf6b6e60f65a0e3104a26e70fea42"},
+			{PartNumber: 2, ETag: "920b914bca0a70780b40881b8f376135-1"},
+			{PartNumber: 3, ETag: "ghj"},
+		},
+	}
+
+	_, err := cmu.BuildMultipartUploadETag()
+	require.NoError(t, err)
+}
