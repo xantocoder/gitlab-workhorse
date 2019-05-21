@@ -129,7 +129,7 @@ func newObject(ctx context.Context, putURL, deleteURL string, putHeaders map[str
 
 		o.extractETag(resp.Header.Get("ETag"))
 		if !IsValidETag(o.md5Sum(), o.etag) {
-			o.uploadError = fmt.Errorf("Invalid ETag: expected %q got %q", o.md5Sum(), o.etag)
+			o.uploadError = fmt.Errorf("invalid ETag: expected %q got %q", o.md5Sum(), o.etag)
 			return
 		}
 	}()
