@@ -20,6 +20,7 @@ import (
 )
 
 const NginxResponseBufferHeader = "X-Accel-Buffering"
+const Md5ETagLength = 32
 
 func Fail500(w http.ResponseWriter, r *http.Request, err error) {
 	http.Error(w, "Internal server error", 500)

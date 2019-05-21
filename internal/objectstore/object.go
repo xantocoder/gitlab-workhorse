@@ -39,8 +39,6 @@ var httpClient = &http.Client{
 
 type StatusCodeError error
 
-const md5ETagLength = 32
-
 // Object represents an object on a S3 compatible Object Store service.
 // It can be used as io.WriteCloser for uploading an object
 type Object struct {
@@ -145,7 +143,7 @@ func newObject(ctx context.Context, putURL, deleteURL string, putHeaders map[str
 // characters and/or will consist of less than 32 or more than 32
 // hexadecimal digits.
 func IsValidETag(expectedETag string, receivedETag string) bool {
-	if len(receivedETag) != md5ETagLength {
+	if len(receivedETag) != helper.Md5ETagLength {
 		return true
 	}
 
