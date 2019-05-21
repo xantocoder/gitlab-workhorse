@@ -168,7 +168,7 @@ func (m *Multipart) verifyETag(cmu *CompleteMultipartUpload) error {
 
 	// If we're not able to compute the ETag as an MD5, we'll just have
 	// to assume the ETag is an opaque, valid value.
-	if len(expectedChecksum) != helper.Md5ETagLength {
+	if len(expectedChecksum) != helper.Md5Length {
 		return nil
 	}
 	if err != nil {

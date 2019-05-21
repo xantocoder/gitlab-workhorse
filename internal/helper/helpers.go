@@ -21,7 +21,7 @@ import (
 )
 
 const NginxResponseBufferHeader = "X-Accel-Buffering"
-const Md5ETagLength = 32
+const Md5Length = 32
 
 func Fail500(w http.ResponseWriter, r *http.Request, err error) {
 	http.Error(w, "Internal server error", 500)
@@ -247,7 +247,7 @@ func ScrubURLParams(originalURL string) string {
 }
 
 func DecodeMd5Checksum(etag string) ([]byte, error) {
-	if len(etag) != Md5ETagLength {
+	if len(etag) != Md5Length {
 		return []byte(""), errors.New("Length is not valid for MD5")
 	}
 
