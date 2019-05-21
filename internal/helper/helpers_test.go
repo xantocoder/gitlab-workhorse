@@ -190,11 +190,11 @@ func TestDecodeMd5Checksum(t *testing.T) {
 		etag  string
 		valid bool
 	}{
-		{ etag: "64eba6b86e926702235156b6ebbe6932", valid: true },
-		{ etag: "64eba6b86e926702235156b6ebbe6932-1", valid: false },
-		{ etag: "64eba6b86e926702235156b6ebbe693", valid: false },
-		{ etag: "64eba6b86e926702235156b6ebbe69Z", valid: false },
-		{ etag: "64eba", valid: false },
+		{etag: "64eba6b86e926702235156b6ebbe6932", valid: true},
+		{etag: "64eba6b86e926702235156b6ebbe6932-1", valid: false},
+		{etag: "64eba6b86e926702235156b6ebbe693", valid: false},
+		{etag: "64eba6b86e926702235156b6ebbe69Z", valid: false},
+		{etag: "64eba", valid: false},
 	}
 
 	for _, tc := range testCases {
