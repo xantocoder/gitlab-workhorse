@@ -125,32 +125,9 @@ func newObject(ctx context.Context, putURL, deleteURL string, putHeaders map[str
 		}
 
 		o.extractETag(resp.Header.Get("ETag"))
-		if !IsValidETag(o.md5Sum(), o.etag) {
-			o.uploadError = fmt.Errorf("invalid ETag: expected %q got %q", o.md5Sum(), o.etag)
-			return
-		}
 	}()
 
 	return o, nil
-}
-
-// From https://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadComplete.html:
-//
-// The entity tag is an opaque string. The entity tag may or may not be
-// an MD5 digest of the object data. If the entity tag is not an MD5
-// digest of the object data, it will contain one or more nonhexadecimal
-// characters and/or will consist of less than 32 or more than 32
-// hexadecimal digits.
-
-func IsValidETag(expectedETag string, receivedETag string) bool {
-	_, err := helper.DecodeMd5Checksum(receivedETag)
-
-	// Not a hex string, so consider this a valid string
-	if err != nil {
-		return true
-	}
-
-	return expectedETag == receivedETag
 }
 
 func (o *Object) delete() {

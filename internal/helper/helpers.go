@@ -2,7 +2,6 @@ package helper
 
 import (
 	"bytes"
-	"encoding/hex"
 	"errors"
 	"io/ioutil"
 	"mime"
@@ -21,7 +20,6 @@ import (
 )
 
 const NginxResponseBufferHeader = "X-Accel-Buffering"
-const Md5Length = 32
 
 func Fail500(w http.ResponseWriter, r *http.Request, err error) {
 	http.Error(w, "Internal server error", 500)
@@ -244,20 +242,6 @@ func ScrubURLParams(originalURL string) string {
 	}
 	u.RawQuery = buf.String()
 	return u.String()
-}
-
-func DecodeMd5Checksum(etag string) ([]byte, error) {
-	if len(etag) != Md5Length {
-		return []byte(""), errors.New("length is not valid for MD5")
-	}
-
-	checksum, err := hex.DecodeString(etag)
-
-	if err != nil {
-		return []byte(""), errors.New("etag is not hexadecimal string")
-	}
-
-	return checksum, nil
 }
 
 // Remember to keep in sync with Rails' filter_parameters

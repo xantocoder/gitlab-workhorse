@@ -92,8 +92,7 @@ func TestSaveFileWrongETag(t *testing.T) {
 		t.Run(spec.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			bogusMd5 := "64eba6b86e926702235156b6ebbe6932"
-			osStub, ts := test.StartObjectStoreWithCustomMD5(map[string]string{test.ObjectPath: bogusMd5})
+			osStub, ts := test.StartObjectStoreWithCustomMD5(map[string]string{test.ObjectPath: "brokenMD5"})
 			defer ts.Close()
 
 			objectURL := ts.URL + test.ObjectPath

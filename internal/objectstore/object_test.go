@@ -149,17 +149,3 @@ func TestObjectUploadBrokenConnection(t *testing.T) {
 	closeErr := object.Close()
 	require.Equal(t, copyErr, closeErr)
 }
-
-func TestValidTagComparisons(t *testing.T) {
-	// Canonical case: Two 32-character, hex strings match
-	require.True(t, objectstore.IsValidETag("64eba6b86e926702235156b6ebbe6932", "64eba6b86e926702235156b6ebbe6932"))
-	// Off-by-1 MD5 value
-	require.False(t, objectstore.IsValidETag("64eba6b86e926702235156b6ebbe6932", "64eba6b86e926702235156b6ebbe6933"))
-
-	// Multipart uploads commonly have -N attached at the end
-	require.True(t, objectstore.IsValidETag("64eba6b86e926702235156b6ebbe6932", "83cbae9a6e0d744bf6eca7205793ca39-1"))
-	// 31-character ETag
-	require.True(t, objectstore.IsValidETag("64eba6b86e926702235156b6ebbe6932", "83cbae9a6e0d744bf6eca7205793ca3"))
-	// Non-hexadecimal character in the ETag
-	require.True(t, objectstore.IsValidETag("64eba6b86e926702235156b6ebbe6932", "83cbae9a6e0d744bf6eca7205793caZ"))
-}

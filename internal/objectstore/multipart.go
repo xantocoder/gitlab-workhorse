@@ -156,27 +156,6 @@ func (m *Multipart) complete(cmu *CompleteMultipartUpload) error {
 	}
 
 	m.extractETag(result.ETag)
-	if err := m.verifyETag(cmu); err != nil {
-		return fmt.Errorf("ETag verification failure: %v", err)
-	}
-
-	return nil
-}
-
-func (m *Multipart) verifyETag(cmu *CompleteMultipartUpload) error {
-	expectedChecksum, err := cmu.BuildMultipartUploadETag()
-
-	if err != nil {
-		return err
-	}
-	// If we're not able to compute the ETag as an MD5, we'll just have
-	// to assume the ETag is an opaque, valid value.
-	if len(expectedChecksum) != helper.Md5Length {
-		return nil
-	}
-	if expectedChecksum != m.etag {
-		return fmt.Errorf("got %q expected %q", m.etag, expectedChecksum)
-	}
 
 	return nil
 }

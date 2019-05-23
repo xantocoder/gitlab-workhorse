@@ -5,8 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/xml"
 	"fmt"
-
-	"gitlab.com/gitlab-org/gitlab-workhorse/internal/helper"
 )
 
 // CompleteMultipartUpload is the S3 CompleteMultipartUpload body
@@ -62,11 +60,10 @@ func (c *compoundCompleteMultipartUploadResult) isError() bool {
 func (cmu *CompleteMultipartUpload) BuildMultipartUploadETag() (string, error) {
 	hasher := md5.New()
 	for _, part := range cmu.Part {
-		checksum, err := helper.DecodeMd5Checksum(part.ETag)
+		checksum, err := hex.DecodeString(part.ETag)
 		if err != nil {
-			return "", nil
+			return "", err
 		}
-
 		_, err = hasher.Write(checksum)
 		if err != nil {
 			return "", err
