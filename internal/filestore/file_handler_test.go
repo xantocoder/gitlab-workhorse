@@ -117,7 +117,6 @@ func TestSaveFileWithNoMd5ETag(t *testing.T) {
 			assert.NoError(err)
 			require.NotNil(t, fh)
 
-
 			cancel() // this will trigger an async cleanup
 			assertObjectStoreDeletedAsync(t, 1, osStub)
 			assert.False(spec.multipart && osStub.IsMultipartUpload(test.ObjectPath), "there must be no multipart upload in progress now")
