@@ -79,7 +79,7 @@ func TestSaveFromDiskNotExistingFile(t *testing.T) {
 	assert.Nil(fh, "On error FileHandler should be nil")
 }
 
-func TestSaveFileWithNoMd5ETag(t *testing.T) {
+func TestSaveFileWrongETag(t *testing.T) {
 	tests := []struct {
 		name      string
 		multipart bool
@@ -114,8 +114,15 @@ func TestSaveFileWithNoMd5ETag(t *testing.T) {
 			}
 			ctx, cancel := context.WithCancel(context.Background())
 			fh, err := filestore.SaveFileFromReader(ctx, strings.NewReader(test.ObjectContent), test.ObjectSize, opts)
-			assert.NoError(err)
-			require.NotNil(t, fh)
+
+			if spec.multipart {
+				assert.NoError(err)
+				require.NotNil(t, fh)
+			} else {
+				assert.Nil(fh)
+				assert.Error(err)
+				assert.Equal(1, osStub.PutsCnt(), "File not uploaded")
+			}
 
 			cancel() // this will trigger an async cleanup
 			assertObjectStoreDeletedAsync(t, 1, osStub)

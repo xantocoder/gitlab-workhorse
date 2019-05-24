@@ -3,6 +3,7 @@ package objectstore
 import (
 	"context"
 	"crypto/md5"
+	"encoding/hex"
 	"hash"
 	"io"
 	"net/http"
@@ -94,6 +95,15 @@ func (u *uploader) extractETag(rawETag string) {
 		rawETag = rawETag[1 : len(rawETag)-1]
 	}
 	u.etag = rawETag
+}
+
+func (u *uploader) md5Sum() string {
+	if u.md5 == nil {
+		return ""
+	}
+
+	checksum := u.md5.Sum(nil)
+	return hex.EncodeToString(checksum)
 }
 
 // ETag returns the checksum of the uploaded object returned by the ObjectStorage provider via ETag Header.

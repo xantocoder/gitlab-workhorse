@@ -36,7 +36,7 @@ func testObjectUploadNoErrors(t *testing.T, useDeleteURL bool, contentType strin
 	defer cancel()
 
 	deadline := time.Now().Add(testTimeout)
-	object, err := objectstore.NewObject(ctx, objectURL, deleteURL, putHeaders, deadline, test.ObjectSize)
+	object, err := objectstore.NewObject(ctx, objectURL, deleteURL, putHeaders, true, deadline, test.ObjectSize)
 	require.NoError(t, err)
 
 	// copy data
@@ -94,7 +94,7 @@ func TestObjectUpload404(t *testing.T) {
 
 	deadline := time.Now().Add(testTimeout)
 	objectURL := ts.URL + test.ObjectPath
-	object, err := objectstore.NewObject(ctx, objectURL, "", map[string]string{}, deadline, test.ObjectSize)
+	object, err := objectstore.NewObject(ctx, objectURL, "", map[string]string{}, true, deadline, test.ObjectSize)
 	require.NoError(err)
 	_, err = io.Copy(object, strings.NewReader(test.ObjectContent))
 
@@ -139,7 +139,7 @@ func TestObjectUploadBrokenConnection(t *testing.T) {
 
 	deadline := time.Now().Add(testTimeout)
 	objectURL := ts.URL + test.ObjectPath
-	object, err := objectstore.NewObject(ctx, objectURL, "", map[string]string{}, deadline, -1)
+	object, err := objectstore.NewObject(ctx, objectURL, "", map[string]string{}, true, deadline, -1)
 	require.NoError(t, err)
 
 	_, copyErr := io.Copy(object, &endlessReader{})

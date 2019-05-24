@@ -46,15 +46,22 @@ type Object struct {
 	// DeleteURL is a presigned URL for RemoveObject
 	DeleteURL string
 
+	// In some cases, the ETag will not be an MD5 hash:
+	// For AWS: https://docs.aws.amazon.com/AmazonS3/latest/API/RESTCommonResponseHeaders.html
+	//
+	// We currently don't use multipart uploads for Google Cloud Storage, so the ETag
+	// header should always be the MD5 hash.
+	ETagIsMd5Hash bool
+
 	uploader
 }
 
 // NewObject opens an HTTP connection to Object Store and returns an Object pointer that can be used for uploading.
-func NewObject(ctx context.Context, putURL, deleteURL string, putHeaders map[string]string, deadline time.Time, size int64) (*Object, error) {
-	return newObject(ctx, putURL, deleteURL, putHeaders, deadline, size, true)
+func NewObject(ctx context.Context, putURL, deleteURL string, putHeaders map[string]string, eTagIsMd5Hash bool, deadline time.Time, size int64) (*Object, error) {
+	return newObject(ctx, putURL, deleteURL, putHeaders, eTagIsMd5Hash, deadline, size, true)
 }
 
-func newObject(ctx context.Context, putURL, deleteURL string, putHeaders map[string]string, deadline time.Time, size int64, metrics bool) (*Object, error) {
+func newObject(ctx context.Context, putURL, deleteURL string, putHeaders map[string]string, eTagIsMd5Hash bool, deadline time.Time, size int64, metrics bool) (*Object, error) {
 	started := time.Now()
 	pr, pw := io.Pipe()
 	// we should prevent pr.Close() otherwise it may shadow error set with pr.CloseWithError(err)
@@ -73,9 +80,10 @@ func newObject(ctx context.Context, putURL, deleteURL string, putHeaders map[str
 
 	uploadCtx, cancelFn := context.WithDeadline(ctx, deadline)
 	o := &Object{
-		PutURL:    putURL,
-		DeleteURL: deleteURL,
-		uploader:  newMD5Uploader(uploadCtx, pw),
+		PutURL:        putURL,
+		DeleteURL:     deleteURL,
+		ETagIsMd5Hash: eTagIsMd5Hash,
+		uploader:      newMD5Uploader(uploadCtx, pw),
 	}
 
 	if metrics {
@@ -125,6 +133,10 @@ func newObject(ctx context.Context, putURL, deleteURL string, putHeaders map[str
 		}
 
 		o.extractETag(resp.Header.Get("ETag"))
+		if o.ETagIsMd5Hash && o.etag != o.md5Sum() {
+			o.uploadError = fmt.Errorf("ETag mismatch. expected %q got %q", o.md5Sum(), o.etag)
+			return
+		}
 	}()
 
 	return o, nil

@@ -196,7 +196,7 @@ func (m *Multipart) uploadPart(url string, headers map[string]string, body io.Re
 		return "", fmt.Errorf("missing deadline")
 	}
 
-	part, err := newObject(m.ctx, url, "", headers, deadline, size, false)
+	part, err := newObject(m.ctx, url, "", headers, false, deadline, size, false)
 	if err != nil {
 		return "", err
 	}

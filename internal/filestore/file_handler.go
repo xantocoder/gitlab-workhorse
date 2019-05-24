@@ -107,7 +107,7 @@ func SaveFileFromReader(ctx context.Context, reader io.Reader, size int64, opts 
 
 		writers = append(writers, remoteWriter)
 	} else if opts.IsRemote() {
-		remoteWriter, err = objectstore.NewObject(ctx, opts.PresignedPut, opts.PresignedDelete, opts.PutHeaders, opts.Deadline, size)
+		remoteWriter, err = objectstore.NewObject(ctx, opts.PresignedPut, opts.PresignedDelete, opts.PutHeaders, true, opts.Deadline, size)
 		if err != nil {
 			return nil, err
 		}
