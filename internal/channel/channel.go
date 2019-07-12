@@ -22,6 +22,7 @@ var (
 
 func Handler(myAPI *api.API) http.Handler {
 	return myAPI.PreAuthorizeHandler(func(w http.ResponseWriter, r *http.Request, a *api.Response) {
+
 		if err := a.Channel.Validate(); err != nil {
 			helper.Fail500(w, r, err)
 			return

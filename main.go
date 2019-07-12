@@ -137,6 +137,7 @@ func main() {
 		APIQueueTimeout:          *apiQueueTimeout,
 		APICILongPollingDuration: *apiCiLongPollingDuration,
 		UserContentDomain:        *userContentDomain,
+		ListenAddr:               *listenAddr,
 	}
 
 	if *configFile != "" {

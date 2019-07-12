@@ -1,17 +1,19 @@
 package serviceproxy
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"path"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/sessions"
+	"golang.org/x/oauth2"
 
 	apipkg "gitlab.com/gitlab-org/gitlab-workhorse/internal/api"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/helper"
@@ -26,6 +28,7 @@ const (
 type Proxy struct {
 	api          *apipkg.API
 	ProxyDomain  string // ProxyDomain holds the UserContentDomain param
+	ListenAddr   string
 	sessionStore *sessions.CookieStore
 }
 
@@ -70,15 +73,98 @@ func (t *TokenInfo) isValid() error {
 	return t.BuildServiceInfo.isValid()
 }
 
-func New(api *apipkg.API, proxyDomain string) *Proxy {
-	return &Proxy{api: api, ProxyDomain: proxyDomain}
+func New(api *apipkg.API, proxyDomain string, listenAddr string) *Proxy {
+	return &Proxy{api: api, ProxyDomain: proxyDomain, ListenAddr: listenAddr}
+}
+
+var (
+	config = oauth2.Config{
+		ClientID:     "32c2da5b239f34d774111cc1f3f91ae4d874008074a07a3aa7e6b339d0c0ea4e",
+		ClientSecret: "df0f8012d02d3d8fd648df17a7a1b0204f57c3154def1cec4b9c7d4a9218fc02",
+		Scopes:       []string{"api"},
+		RedirectURL:  "http://172.16.2.2.xip.io:3001/oauth2",
+		// This points to our Authorization Server
+		// if our Client ID and Client Secret are valid
+		// it will attempt to authorize our user
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "http://172.16.2.2:3001/oauth/authorize",
+			TokenURL: "http://172.16.2.2:3001/oauth/token",
+		},
+	}
+)
+
+// func Handler(myAPI *api.API) http.Handler {
+// 	return myAPI.PreAuthorizeHandler(func(w http.ResponseWriter, r *http.Request, a *api.Response) {
+
+func (p *Proxy) Authorize() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("***** Authorize")
+		r.ParseForm()
+		state := r.Form.Get("state")
+		if state != "xyz" {
+			http.Error(w, "State invalid", http.StatusBadRequest)
+			return
+		}
+
+		code := r.Form.Get("code")
+		if code == "" {
+			http.Error(w, "Code not found", http.StatusBadRequest)
+			return
+		}
+
+		token, err := config.Exchange(context.Background(), code)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		sessionInfo, err := p.getSessionInfo(r)
+		if err != nil {
+			helper.Fail500(w, r, err)
+			return
+		}
+
+		sessionInfo.AccessToken = token.AccessToken
+
+		if err := p.saveSessionInfo(w, r, sessionInfo); err != nil {
+			helper.Fail500(w, r, err)
+			return
+		}
+
+		http.Redirect(w, r, r.URL.Query().Get("ide_url"), http.StatusFound)
+	})
 }
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Disallowing requests from the main domain. Because
 	// we're using sessions, we only allow requests from subdomains
-	if !isSubdomain(r.Host, p.ProxyDomain) {
-		helper.CaptureAndFail(w, r, fmt.Errorf("invalid domain"), http.StatusText(http.StatusForbidden), http.StatusForbidden)
+	// if !isSubdomain(r.Host, p.ProxyDomain) {
+	// 	helper.CaptureAndFail(w, r, fmt.Errorf("invalid domain"), http.StatusText(http.StatusForbidden), http.StatusForbidden)
+	// 	return
+	// }
+	sessionInfo, err := p.getSessionInfo(r)
+	if err != nil {
+		helper.Fail500(w, r, err)
+		return
+	}
+	if r.Host != sessionInfo.SessionDomain {
+		sessionInfo = &SessionInfo{SessionDomain: r.Host}
+		p.saveSessionInfo(w, r, sessionInfo)
+	}
+
+	if sessionInfo.AccessToken == "" {
+		u, _ := url.Parse(config.RedirectURL)
+
+		r.URL.Host = r.Host
+		r.URL.Scheme = "http"
+
+		q := url.Values{"ide_url": []string{r.URL.String()}}
+		u.RawQuery = q.Encode()
+		config.RedirectURL = u.String()
+
+		oauthURL := config.AuthCodeURL("xyz")
+
+		http.Redirect(w, r, oauthURL, http.StatusFound)
 		return
 	}
 
@@ -99,46 +185,78 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) proxyRequest(w http.ResponseWriter, r *http.Request, s *apipkg.ServiceProxySettings) {
 	var err error
 
-	// Saving the original custom domain
-	origHost := r.Host
-
-	// Getting the url to proxy to the runner
-	u, err := s.URL()
+	origPath := r.URL.Path
+	sessionInfo, err := p.getSessionInfo(r)
 	if err != nil {
 		helper.Fail500(w, r, err)
 		return
 	}
 
-	// Updating the URL params needed to proxy to the runner
-	r.URL.Scheme = u.Scheme
-	r.URL.Path = path.Join(u.Path, r.URL.Path)
-	r.URL.Host = u.Host
-	r.Host = r.URL.Host
+	if sessionInfo.IdeURL == "" {
+		fmt.Println("PROXING")
+		// Saving the original custom domain
+		// origHost := r.Host
 
-	// Adding the auth header for the runner
-	r.Header.Add("Authorization", s.Header.Get("Authorization"))
-
-	if len(s.CAPem) > 0 {
-		pool, err := x509.SystemCertPool()
+		// Getting the url to proxy to the runner
+		u, err := s.URL()
 		if err != nil {
 			helper.Fail500(w, r, err)
 			return
 		}
-		pool.AppendCertsFromPEM([]byte(s.CAPem))
-		transportWithTimeouts.TLSClientConfig = &tls.Config{RootCAs: pool}
+
+		// Updating the URL params needed to proxy to the runner
+		r.URL.Scheme = u.Scheme
+		r.URL.Path = path.Join(u.Path, r.URL.Path)
+		r.URL.Host = u.Host
+		r.Host = r.URL.Host
+
+		// Adding the auth header for the runner
+		r.Header.Add("Authorization", s.Header.Get("Authorization"))
+		if len(s.CAPem) > 0 {
+			// pool, err := x509.SystemCertPool()
+			// if err != nil {
+			// 	helper.Fail500(w, r, err)
+			// 	return
+			// }
+			// pool.AppendCertsFromPEM([]byte(s.CAPem))
+			// transportWithTimeouts.TLSClientConfig = &tls.Config{RootCAs: pool}
+
+			pool := x509.NewCertPool()
+			pool.AppendCertsFromPEM([]byte(s.CAPem))
+			transportWithTimeouts.TLSClientConfig = &tls.Config{RootCAs: pool}
+		}
+
+		resp, err := httpTransport.RoundTrip(r)
+		if err != nil {
+			helper.CaptureAndFail(w, r, err, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+			return
+		}
+		sessionInfo.IdeURL = resp.Header.Get("Location")
+		p.saveSessionInfo(w, r, sessionInfo)
 	}
 
-	resp, err := httpTransport.RoundTrip(r)
-	if err != nil {
-		helper.CaptureAndFail(w, r, err, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
-		return
-	}
-	defer resp.Body.Close()
+	u, err := url.Parse(sessionInfo.IdeURL)
+	// r.URL.Scheme = u.Scheme
+	r.URL.Path = origPath
 
-	copyHeader(w.Header(), resp.Header)
-	transformRedirection(resp, w, origHost)
-	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	r.Header.Set("Authorization", "Bearer "+sessionInfo.AccessToken)
+	reverseProxy := httputil.NewSingleHostReverseProxy(u)
+	reverseProxy.ServeHTTP(w, r)
+
+	// r.Header.Set("Authorization", "Bearer "+session.Values["access_token"].(string))
+	// log.Printf("r.URL.String(): %#+v\n", r.URL.String())
+	// resp, err := httpTransport.RoundTrip(r)
+	// if err != nil {
+	// 	helper.CaptureAndFail(w, r, err, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+	// 	return
+	// }
+	// defer resp.Body.Close()
+
+	// copyHeader(w.Header(), resp.Header)
+
+	// // transformRedirection(resp, w, origHost)
+	// w.WriteHeader(resp.StatusCode)
+	// io.Copy(w, resp.Body)
 }
 
 func (p *Proxy) authenticateRequest(w http.ResponseWriter, r *http.Request) {
@@ -161,6 +279,8 @@ func (p *Proxy) authenticateRequest(w http.ResponseWriter, r *http.Request) {
 		helper.Fail400(w, r, err)
 		return
 	}
+
+	fmt.Println("ES UN TOKEN VAAAAALIDO")
 
 	// Building the Rails API endpoint for authorization
 	u, err := p.authorizeAPIEndPointURL(r, token)

@@ -53,6 +53,7 @@ type Config struct {
 	APIQueueTimeout          time.Duration `toml:"-"`
 	APICILongPollingDuration time.Duration `toml:"-"`
 	UserContentDomain        string        `toml:"-"`
+	ListenAddr               string        `toml:"-"`
 }
 
 // LoadConfig from a file

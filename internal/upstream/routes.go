@@ -166,7 +166,7 @@ func (u *upstream) configureRoutes() {
 
 	static := &staticpages.Static{DocumentRoot: u.DocumentRoot}
 	proxy := buildProxy(u.Backend, u.Version, u.RoundTripper)
-	buildServiceProxy := serviceproxy.New(api, u.UserContentDomain)
+	buildServiceProxy := serviceproxy.New(api, u.UserContentDomain, u.ListenAddr)
 
 	signingTripper := secret.NewRoundTripper(u.RoundTripper, u.Version)
 	signingProxy := buildProxy(u.Backend, u.Version, signingTripper)
@@ -241,6 +241,8 @@ func (u *upstream) configureRoutes() {
 	// Prepend the service proxy routes if the user content domain exists
 	if u.UserContentDomain != "" {
 		serviceProxyRoutes := []routeEntry{
+			wsRoute("", buildServiceProxy),
+			route("", "/oauth2", buildServiceProxy.Authorize(), withMatcher(isForDomain(buildServiceProxy.ProxyDomain))),
 			route("", "", buildServiceProxy, withMatcher(isForDomain(buildServiceProxy.ProxyDomain))),
 		}
 

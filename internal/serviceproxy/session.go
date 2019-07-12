@@ -19,7 +19,10 @@ const (
 	sessionExpirationTime = 6 * 3600
 )
 
-type sessionInfo struct {
+type SessionInfo struct {
+	SessionDomain     string                       `json:"session_domain"`
+	AccessToken       string                       `json:"access_token"`
+	IdeURL            string                       `json:"ide_url"`
 	RunnerSessionInfo *apipkg.ServiceProxySettings `json:"runner_session"`
 }
 
@@ -42,6 +45,7 @@ func (p *Proxy) initSessionStore() error {
 	p.sessionStore.Options = &sessions.Options{
 		Path:     "/",
 		MaxAge:   sessionExpirationTime,
+		Domain:   ".172.16.2.2.xip.io",
 		HttpOnly: true,
 	}
 
@@ -69,13 +73,13 @@ func (p *Proxy) saveSession(w http.ResponseWriter, r *http.Request, s *sessions.
 	return nil
 }
 
-func (p *Proxy) getSessionInfo(r *http.Request) (*sessionInfo, error) {
+func (p *Proxy) getSessionInfo(r *http.Request) (*SessionInfo, error) {
 	session, err := p.getSession(r)
 	if err != nil {
 		return nil, err
 	}
 
-	var s sessionInfo
+	var s SessionInfo
 	info := session.Values[sessionInfoCookie]
 	if info == nil {
 		return &s, nil
@@ -93,7 +97,7 @@ func (p *Proxy) getSessionInfo(r *http.Request) (*sessionInfo, error) {
 	return &s, nil
 }
 
-func (p *Proxy) saveSessionInfo(w http.ResponseWriter, r *http.Request, s *sessionInfo) error {
+func (p *Proxy) saveSessionInfo(w http.ResponseWriter, r *http.Request, s *SessionInfo) error {
 	session, err := p.getSession(r)
 	if err != nil {
 		return nil
@@ -122,6 +126,10 @@ func (p *Proxy) saveSessionBuildRunnerSession(w http.ResponseWriter, r *http.Req
 	info, err := p.getSessionInfo(r)
 	if err != nil {
 		return err
+	}
+
+	if info == nil {
+		info = &SessionInfo{RunnerSessionInfo: s}
 	}
 
 	info.RunnerSessionInfo = s
