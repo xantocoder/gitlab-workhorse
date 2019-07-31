@@ -4,6 +4,7 @@ BUILD_DIR ?= $(CURDIR)
 TARGET_DIR ?= $(BUILD_DIR)/_build
 TARGET_SETUP := $(TARGET_DIR)/.ok
 BIN_BUILD_DIR := $(TARGET_DIR)/bin
+TOOLS_DIR := $(BUILD_DIR)/_tools
 PKG_BUILD_DIR := $(TARGET_DIR)/src/$(PKG)
 COVERAGE_DIR := $(TARGET_DIR)/cover
 VERSION_STRING := $(shell git describe)
@@ -15,7 +16,9 @@ GOBUILD := go build -ldflags "-X main.Version=$(VERSION)"
 EXE_ALL := gitlab-zip-cat gitlab-zip-metadata gitlab-workhorse
 INSTALL := install
 BUILD_TAGS := tracer_static tracer_static_jaeger
-
+STATICCHECK_VERSION := 2019.2.2
+STATICCHECK := $(TOOLS_DIR)/staticcheck
+STATICCHECK_VERSION_INSTALLED = $(shell $(STATICCHECK) -version)
 MINIMUM_SUPPORTED_GO_VERSION := 1.8
 
 # Some users may have these variables set in their environment, but doing so could break
@@ -134,14 +137,20 @@ check-formatting: $(TARGET_SETUP) install-goimports
 	$(call message,Verify: $@)
 	@_support/validate-formatting.sh $(LOCAL_GO_FILES)
 
-# Megacheck will tailor some responses given a minimum Go version, so pass that through the CLI
-# Additionally, megacheck will not return failure exit codes unless explicitly told to via the
-# `-simple.exit-non-zero` `-unused.exit-non-zero` and `-staticcheck.exit-non-zero` flags
+$(STATICCHECK):
+	mkdir -p $(TOOLS_DIR)
+	_support/install-staticcheck.sh $(STATICCHECK_VERSION) $@
+
+# staticcheck will tailor some responses given a minimum Go version, so pass that through the CLI
 .PHONY: staticcheck
-staticcheck: $(TARGET_SETUP) govendor-sync
+staticcheck: $(TARGET_SETUP) govendor-sync $(STATICCHECK)
 	$(call message,Verify: $@)
-	@command -v staticcheck || go get -v honnef.co/go/tools/cmd/staticcheck
-	@staticcheck -go $(MINIMUM_SUPPORTED_GO_VERSION) $(LOCAL_PACKAGES)
+	@if [ "staticcheck $(STATICCHECK_VERSION)" != "$(STATICCHECK_VERSION_INSTALLED)" ]; then \
+		echo wrong version of staticcheck. required "staticcheck $(STATICCHECK_VERSION)", you have "$(STATICCHECK_VERSION_INSTALLED)". \
+		echo make clean-tools and try again.\
+		exit 1; \
+	fi
+	@$(TOOLS_DIR)/staticcheck -go $(MINIMUM_SUPPORTED_GO_VERSION) $(LOCAL_PACKAGES)
 
 # Some vendor components, used for testing are GPL, so we don't distribute them
 # and need to go a sync before using them
@@ -162,3 +171,8 @@ fmt: $(TARGET_SETUP) install-goimports
 install-goimports:	$(TARGET_SETUP)
 	$(call message,$@)
 	@command -v goimports || go get -v golang.org/x/tools/cmd/goimports
+
+.PHONY:	clean-tools
+clean-tools:
+	$(call message,$@)
+	rm -rf $(TOOLS_DIR)
