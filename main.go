@@ -18,12 +18,11 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"syscall"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"gitlab.com/gitlab-org/labkit/healthcheck"
 	"gitlab.com/gitlab-org/labkit/log"
 	"gitlab.com/gitlab-org/labkit/tracing"
 
@@ -44,7 +43,7 @@ var listenNetwork = flag.String("listenNetwork", "tcp", "Listen 'network' (tcp, 
 var listenUmask = flag.Int("listenUmask", 0, "Umask for Unix socket")
 var authBackend = flag.String("authBackend", upstream.DefaultBackend.String(), "Authentication/authorization backend")
 var authSocket = flag.String("authSocket", "", "Optional: Unix domain socket to dial authBackend at")
-var pprofListenAddr = flag.String("pprofListenAddr", "", "pprof listening address, e.g. 'localhost:6060'")
+var pprofListenAddr = flag.String("pprofListenAddr", "", "DEPRECATED. pprof listening address, e.g. 'localhost:6060'")
 var documentRoot = flag.String("documentRoot", "public", "Path to static files content")
 var proxyHeadersTimeout = flag.Duration("proxyHeadersTimeout", 5*time.Minute, "How long to wait for response headers when proxying the request")
 var developmentMode = flag.Bool("developmentMode", false, "Allow the assets to be served from Rails app")
@@ -112,23 +111,13 @@ func main() {
 	// having no profiler HTTP listener by default, the profiler is
 	// effectively disabled by default.
 	if *pprofListenAddr != "" {
-		go func() {
-			err := http.ListenAndServe(*pprofListenAddr, nil)
-			if err != nil {
-				log.WithError(err).Error("Failed to start pprof listener")
-			}
-		}()
+		log.Info("pprofListenAddr is deprecated, pprof is now available via prometheus listener endpoint.")
+
+		healthcheck.NewListener(healthcheck.WithListenerAddress(*pprofListenAddr))
 	}
 
 	if *prometheusListenAddr != "" {
-		promMux := http.NewServeMux()
-		promMux.Handle("/metrics", promhttp.Handler())
-		go func() {
-			err := http.ListenAndServe(*prometheusListenAddr, promMux)
-			if err != nil {
-				log.WithError(err).Error("Failed to start prometheus listener")
-			}
-		}()
+		healthcheck.NewListener(healthcheck.WithListenerAddress(*prometheusListenAddr))
 	}
 
 	secret.SetPath(*secretPath)

@@ -65,7 +65,7 @@ Options:
   -logFormat string
       Log format to use defaults to text (text, json, structured, none) (default "text")
   -pprofListenAddr string
-      pprof listening address, e.g. 'localhost:6060'
+      DEPRECATED. pprof listening address, e.g. 'localhost:6060'
   -prometheusListenAddr string
       Prometheus listening address, e.g. 'localhost:9229'
   -proxyHeadersTimeout duration
@@ -81,8 +81,11 @@ a holdover from when gitlab-workhorse only handled Git push/pull over
 HTTP.
 
 Gitlab-workhorse can listen on either a TCP or a Unix domain socket. It
-can also open a second listening TCP listening socket with the Go
-[net/http/pprof profiler server](http://golang.org/pkg/net/http/pprof/).
+can also open a second listening TCP listening socket with the
+[LabKit](https://gitlab.com/gitlab-org/labkit/) HealthCheck endpoint.
+This endpoint provides prometheus metrics at `/metrics` and the Go
+[net/http/pprof profiler server](http://golang.org/pkg/net/http/pprof/)
+at `/debug`.
 
 Gitlab-workhorse can listen on redis events (currently only builds/register
 for runners). This requires you to pass a valid TOML config file via
