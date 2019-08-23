@@ -2,6 +2,10 @@
 
 Formerly known as 'gitlab-git-http-server'.
 
+v8.8.1
+
+- Use accelerated uploads for users/personal snippets
+
 v8.8.0
 
 - Filter title, description, text, and body from logs !402
