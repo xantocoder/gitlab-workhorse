@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"io"
 	"path"
 	"sort"
@@ -22,6 +23,9 @@ type metadata struct {
 
 const MetadataHeaderPrefix = "\x00\x00\x00&" // length of string below, encoded properly
 const MetadataHeader = "GitLab Build Artifacts Metadata 0.0.2\n"
+
+var MaxMetadataEntries = 500000
+var ErrTooManyEntries = errors.New("metadata file contains too many entries")
 
 func newMetadata(file *zip.File) metadata {
 	if file == nil {
@@ -71,6 +75,12 @@ func GenerateZipMetadata(w io.Writer, archive *zip.Reader) error {
 	// Write empty error header that we may need in the future
 	if err := writeString(output, "{}"); err != nil {
 		return err
+	}
+
+	// Limit the number of entries that a metadata file can contain
+	// in order to prevent abuses.
+	if len(archive.File) > MaxMetadataEntries {
+		return ErrTooManyEntries
 	}
 
 	// Create map of files in zip archive

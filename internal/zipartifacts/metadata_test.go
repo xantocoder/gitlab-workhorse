@@ -85,6 +85,33 @@ func TestGenerateZipMetadataFromFile(t *testing.T) {
 	require.NoError(err)
 }
 
+func TestTooManyEntriesError(t *testing.T) {
+	var metaBuffer bytes.Buffer
+	require := require.New(t)
+
+	f, err := ioutil.TempFile("", "workhorse-metadata.zip-")
+	if f != nil {
+		defer os.Remove(f.Name())
+	}
+	require.NoError(err)
+	defer f.Close()
+
+	err = generateTestArchive(f)
+	require.NoError(err)
+	f.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	archive, err := zipartifacts.OpenArchive(ctx, f.Name())
+	require.NoError(err, "zipartifacts: OpenArchive failed")
+
+	zipartifacts.MaxMetadataEntries = 5
+
+	err = zipartifacts.GenerateZipMetadata(&metaBuffer, archive)
+	assert.Equal(t, zipartifacts.ErrTooManyEntries, err)
+}
+
 func TestErrNotAZip(t *testing.T) {
 	f, err := ioutil.TempFile("", "workhorse-metadata.zip-")
 	if f != nil {
