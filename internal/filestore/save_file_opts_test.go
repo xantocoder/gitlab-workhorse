@@ -80,6 +80,7 @@ func TestGetOpts(t *testing.T) {
 		multipart        *api.MultipartUploadParams
 		customPutHeaders bool
 		putHeaders       map[string]string
+		skipETagVerify   bool
 	}{
 		{
 			name: "Single upload",
@@ -107,6 +108,19 @@ func TestGetOpts(t *testing.T) {
 			customPutHeaders: true,
 			putHeaders:       map[string]string{"Content-Type": "image/jpeg"},
 		},
+		{
+			name:           "Single upload with disabled ETag verification",
+			skipETagVerify: true,
+		}, {
+			name: "Multipart upload with disabled ETag verification",
+			multipart: &api.MultipartUploadParams{
+				PartSize:    10,
+				CompleteURL: "http://complete",
+				AbortURL:    "http://abort",
+				PartURLs:    []string{"http://part1", "http://part2"},
+			},
+			skipETagVerify: true,
+		},
 	}
 
 	for _, test := range tests {
@@ -124,6 +138,7 @@ func TestGetOpts(t *testing.T) {
 					MultipartUpload:  test.multipart,
 					CustomPutHeaders: test.customPutHeaders,
 					PutHeaders:       test.putHeaders,
+					SkipETagVerify:   test.skipETagVerify,
 				},
 			}
 			deadline := time.Now().Add(time.Duration(apiResponse.RemoteObject.Timeout) * time.Second)
@@ -140,6 +155,8 @@ func TestGetOpts(t *testing.T) {
 			} else {
 				assert.Equal(opts.PutHeaders, map[string]string{"Content-Type": "application/octet-stream"})
 			}
+
+			assert.Equal(apiResponse.RemoteObject.SkipETagVerify, opts.SkipETagVerify)
 
 			if test.multipart == nil {
 				assert.False(opts.IsMultipart())

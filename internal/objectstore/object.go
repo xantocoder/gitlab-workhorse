@@ -45,16 +45,20 @@ type Object struct {
 	PutURL string
 	// DeleteURL is a presigned URL for RemoveObject
 	DeleteURL string
+	// By default, the MD5 sum of the file is expected to match the
+	// ETag. If this is not true for the object storage provider or
+	// transfer mode, this should be disabled by an upstream config.
+	SkipETagVerify bool
 
 	uploader
 }
 
 // NewObject opens an HTTP connection to Object Store and returns an Object pointer that can be used for uploading.
-func NewObject(ctx context.Context, putURL, deleteURL string, putHeaders map[string]string, deadline time.Time, size int64) (*Object, error) {
-	return newObject(ctx, putURL, deleteURL, putHeaders, deadline, size, true)
+func NewObject(ctx context.Context, putURL, deleteURL string, putHeaders map[string]string, deadline time.Time, size int64, skipETagVerify bool) (*Object, error) {
+	return newObject(ctx, putURL, deleteURL, putHeaders, deadline, size, true, skipETagVerify)
 }
 
-func newObject(ctx context.Context, putURL, deleteURL string, putHeaders map[string]string, deadline time.Time, size int64, metrics bool) (*Object, error) {
+func newObject(ctx context.Context, putURL, deleteURL string, putHeaders map[string]string, deadline time.Time, size int64, metrics bool, skipETagVerify bool) (*Object, error) {
 	started := time.Now()
 	pr, pw := io.Pipe()
 	// we should prevent pr.Close() otherwise it may shadow error set with pr.CloseWithError(err)
@@ -73,9 +77,10 @@ func newObject(ctx context.Context, putURL, deleteURL string, putHeaders map[str
 
 	uploadCtx, cancelFn := context.WithDeadline(ctx, deadline)
 	o := &Object{
-		PutURL:    putURL,
-		DeleteURL: deleteURL,
-		uploader:  newMD5Uploader(uploadCtx, pw),
+		PutURL:         putURL,
+		DeleteURL:      deleteURL,
+		SkipETagVerify: skipETagVerify,
+		uploader:       newMD5Uploader(uploadCtx, pw),
 	}
 
 	if metrics {
@@ -125,7 +130,10 @@ func newObject(ctx context.Context, putURL, deleteURL string, putHeaders map[str
 		}
 
 		o.extractETag(resp.Header.Get("ETag"))
-		o.uploadError = compareMD5(o.md5Sum(), o.etag)
+
+		if !o.SkipETagVerify {
+			o.uploadError = compareMD5(o.md5Sum(), o.etag)
+		}
 	}()
 
 	return o, nil

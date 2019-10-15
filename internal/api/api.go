@@ -91,6 +91,10 @@ type RemoteObject struct {
 	Timeout int
 	// MultipartUpload contains presigned URLs for S3 MultipartUpload
 	MultipartUpload *MultipartUploadParams
+	// By default, the MD5 sum of the file is expected to match the
+	// ETag. If this is not true for the object storage provider or
+	// transfer mode, this should be disabled by an upstream config.
+	SkipETagVerify bool
 }
 
 type Response struct {

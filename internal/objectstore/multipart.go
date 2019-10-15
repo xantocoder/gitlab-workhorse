@@ -29,20 +29,26 @@ type Multipart struct {
 	// DeleteURL is a presigned URL for RemoveObject
 	DeleteURL string
 
+	// By default, the MD5 sum of the file is expected to match the
+	// ETag. If this is not true for the object storage provider or
+	// transfer mode, this should be disabled by an upstream config.
+	SkipETagVerify bool
+
 	uploader
 }
 
 // NewMultipart provides Multipart pointer that can be used for uploading. Data written will be split buffered on disk up to size bytes
 // then uploaded with S3 Upload Part. Once Multipart is Closed a final call to CompleteMultipartUpload will be sent.
 // In case of any error a call to AbortMultipartUpload will be made to cleanup all the resources
-func NewMultipart(ctx context.Context, partURLs []string, completeURL, abortURL, deleteURL string, putHeaders map[string]string, deadline time.Time, partSize int64) (*Multipart, error) {
+func NewMultipart(ctx context.Context, partURLs []string, completeURL, abortURL, deleteURL string, putHeaders map[string]string, deadline time.Time, partSize int64, skipETagVerify bool) (*Multipart, error) {
 	pr, pw := io.Pipe()
 	uploadCtx, cancelFn := context.WithDeadline(ctx, deadline)
 	m := &Multipart{
-		CompleteURL: completeURL,
-		AbortURL:    abortURL,
-		DeleteURL:   deleteURL,
-		uploader:    newUploader(uploadCtx, pw),
+		CompleteURL:    completeURL,
+		AbortURL:       abortURL,
+		DeleteURL:      deleteURL,
+		SkipETagVerify: skipETagVerify,
+		uploader:       newUploader(uploadCtx, pw),
 	}
 
 	go m.trackUploadTime()
@@ -160,6 +166,10 @@ func (m *Multipart) complete(cmu *CompleteMultipartUpload) error {
 }
 
 func (m *Multipart) verifyETag(cmu *CompleteMultipartUpload) error {
+	if m.SkipETagVerify {
+		return nil
+	}
+
 	expectedChecksum, err := cmu.BuildMultipartUploadETag()
 	if err != nil {
 		return err
@@ -204,7 +214,7 @@ func (m *Multipart) uploadPart(url string, headers map[string]string, body io.Re
 		return "", fmt.Errorf("missing deadline")
 	}
 
-	part, err := newObject(m.ctx, url, "", headers, deadline, size, false)
+	part, err := newObject(m.ctx, url, "", headers, deadline, size, false, m.SkipETagVerify)
 	if err != nil {
 		return "", err
 	}

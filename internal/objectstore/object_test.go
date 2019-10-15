@@ -38,7 +38,7 @@ func testObjectUploadNoErrors(t *testing.T, startObjectStore osFactory, useDelet
 	defer cancel()
 
 	deadline := time.Now().Add(testTimeout)
-	object, err := objectstore.NewObject(ctx, objectURL, deleteURL, putHeaders, deadline, test.ObjectSize)
+	object, err := objectstore.NewObject(ctx, objectURL, deleteURL, putHeaders, deadline, test.ObjectSize, false)
 	require.NoError(t, err)
 
 	// copy data
@@ -113,7 +113,7 @@ func TestObjectUpload404(t *testing.T) {
 
 	deadline := time.Now().Add(testTimeout)
 	objectURL := ts.URL + test.ObjectPath
-	object, err := objectstore.NewObject(ctx, objectURL, "", map[string]string{}, deadline, test.ObjectSize)
+	object, err := objectstore.NewObject(ctx, objectURL, "", map[string]string{}, deadline, test.ObjectSize, false)
 	require.NoError(err)
 	_, err = io.Copy(object, strings.NewReader(test.ObjectContent))
 
@@ -158,7 +158,7 @@ func TestObjectUploadBrokenConnection(t *testing.T) {
 
 	deadline := time.Now().Add(testTimeout)
 	objectURL := ts.URL + test.ObjectPath
-	object, err := objectstore.NewObject(ctx, objectURL, "", map[string]string{}, deadline, -1)
+	object, err := objectstore.NewObject(ctx, objectURL, "", map[string]string{}, deadline, -1, false)
 	require.NoError(t, err)
 
 	_, copyErr := io.Copy(object, &endlessReader{})
@@ -167,4 +167,31 @@ func TestObjectUploadBrokenConnection(t *testing.T) {
 
 	closeErr := object.Close()
 	require.Equal(t, copyErr, closeErr)
+}
+
+func TestSkipETagCheck(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "PUT" {
+			require.Equal(t, test.ObjectPath, r.URL.Path)
+			w.Header().Set("ETag", "not a valid MD5-based ETag")
+			w.WriteHeader(http.StatusOK)
+		} else {
+			t.FailNow()
+		}
+	}))
+	defer ts.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	deadline := time.Now().Add(testTimeout)
+	objectURL := ts.URL + test.ObjectPath
+	object, err := objectstore.NewObject(ctx, objectURL, "", map[string]string{}, deadline, -1, true)
+	require.NoError(t, err)
+
+	_, copyErr := io.Copy(object, &endlessReader{})
+	require.Error(t, copyErr)
+
+	closeErr := object.Close()
+	require.NoError(t, closeErr)
 }

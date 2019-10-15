@@ -38,6 +38,10 @@ type SaveFileOpts struct {
 	PresignedCompleteMultipart string
 	// PresignedAbortMultipart is a presigned URL for AbortMultipartUpload
 	PresignedAbortMultipart string
+	// By default, the MD5 sum of the file is expected to match the
+	// ETag. If this is not true for the object storage provider or
+	// transfer mode, this should be disabled by an upstream config.
+	SkipETagVerify bool
 }
 
 // IsLocal checks if the options require the writing of the file on disk
@@ -69,6 +73,7 @@ func GetOpts(apiResponse *api.Response) *SaveFileOpts {
 		PresignedPut:    apiResponse.RemoteObject.StoreURL,
 		PresignedDelete: apiResponse.RemoteObject.DeleteURL,
 		PutHeaders:      apiResponse.RemoteObject.PutHeaders,
+		SkipETagVerify:  apiResponse.RemoteObject.SkipETagVerify,
 		Deadline:        time.Now().Add(timeout),
 	}
 
