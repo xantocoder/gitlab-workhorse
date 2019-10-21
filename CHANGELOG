@@ -2,6 +2,10 @@
 
 Formerly known as 'gitlab-git-http-server'.
 
+v 8.14.1
+
+- Set a time limit on git upload-pack requests
+
 v 8.14.0
 
 - Keep HTTP 1.0 cache headers from sendurl proxies !431
