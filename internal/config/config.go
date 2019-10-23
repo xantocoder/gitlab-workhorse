@@ -40,18 +40,23 @@ type RedisConfig struct {
 	MaxActive       *int
 }
 
+type ReadinessConfig struct {
+	ProbesURL []string
+}
+
 type Config struct {
-	Redis                    *RedisConfig  `toml:"redis"`
-	Backend                  *url.URL      `toml:"-"`
-	Version                  string        `toml:"-"`
-	DocumentRoot             string        `toml:"-"`
-	DevelopmentMode          bool          `toml:"-"`
-	Socket                   string        `toml:"-"`
-	ProxyHeadersTimeout      time.Duration `toml:"-"`
-	APILimit                 uint          `toml:"-"`
-	APIQueueLimit            uint          `toml:"-"`
-	APIQueueTimeout          time.Duration `toml:"-"`
-	APICILongPollingDuration time.Duration `toml:"-"`
+	Redis                    *RedisConfig     `toml:"redis"`
+	Readiness                *ReadinessConfig `toml:"readiness"`
+	Backend                  *url.URL         `toml:"-"`
+	Version                  string           `toml:"-"`
+	DocumentRoot             string           `toml:"-"`
+	DevelopmentMode          bool             `toml:"-"`
+	Socket                   string           `toml:"-"`
+	ProxyHeadersTimeout      time.Duration    `toml:"-"`
+	APILimit                 uint             `toml:"-"`
+	APIQueueLimit            uint             `toml:"-"`
+	APIQueueTimeout          time.Duration    `toml:"-"`
+	APICILongPollingDuration time.Duration    `toml:"-"`
 }
 
 // LoadConfig from a file

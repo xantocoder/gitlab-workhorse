@@ -137,6 +137,23 @@ MaxActive = 1
 - `MaxIdle` is how many idle connections can be in the redis-pool at once. Defaults to 1
 - `MaxActive` is how many connections the pool can keep. Defaults to 1
 
+### Health-checks
+
+The Workhorse exposes it's own internal healthchecks on the `-prometheusListenAddr`:
+
+- `/liveness` endpoint that always responds with OK when running
+- `/readiness` endpoint that responds with OK when all downstream probes are successful
+
+In order to add downstream probes for `/readiness` endpoint
+add a `[readiness]` in the config file.
+
+```toml
+[readiness]
+ProbesURL = [
+  "http://localhost:8083/readiness"
+]
+```
+
 ### Relative URL support
 
 If you are mounting GitLab at a relative URL, e.g.

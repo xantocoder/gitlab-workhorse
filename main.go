@@ -28,6 +28,7 @@ import (
 	"gitlab.com/gitlab-org/labkit/tracing"
 
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/config"
+	"gitlab.com/gitlab-org/gitlab-workhorse/internal/healthcheck"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/queueing"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/redis"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/secret"
@@ -120,17 +121,6 @@ func main() {
 		}()
 	}
 
-	if *prometheusListenAddr != "" {
-		promMux := http.NewServeMux()
-		promMux.Handle("/metrics", promhttp.Handler())
-		go func() {
-			err := http.ListenAndServe(*prometheusListenAddr, promMux)
-			if err != nil {
-				log.WithError(err).Error("Failed to start prometheus listener")
-			}
-		}()
-	}
-
 	secret.SetPath(*secretPath)
 	cfg := config.Config{
 		Backend:                  backendURL,
@@ -152,11 +142,25 @@ func main() {
 		}
 
 		cfg.Redis = cfgFromFile.Redis
+		cfg.Readiness = cfgFromFile.Readiness
 
 		if cfg.Redis != nil {
 			redis.Configure(cfg.Redis, redis.DefaultDialFunc)
 			go redis.Process()
 		}
+	}
+
+	if *prometheusListenAddr != "" {
+		mux := http.NewServeMux()
+		mux.Handle("/liveness", healthcheck.Liveness())
+		mux.Handle("/readiness", healthcheck.Readiness(cfg.Readiness))
+		mux.Handle("/metrics", promhttp.Handler())
+		go func() {
+			err := http.ListenAndServe(*prometheusListenAddr, mux)
+			if err != nil {
+				log.WithError(err).Error("Failed to start prometheus listener")
+			}
+		}()
 	}
 
 	accessLogger, accessCloser, err := getAccessLogger(logConfig)
