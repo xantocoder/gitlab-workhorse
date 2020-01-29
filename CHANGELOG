@@ -2,6 +2,10 @@
 
 Formerly known as 'gitlab-git-http-server'.
 
+v 8.14.2
+
+- Sign file upload requests modified by workhorse
+
 v 8.14.1
 
 - Set a time limit on git upload-pack requests
