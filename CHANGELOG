@@ -2,6 +2,10 @@
 
 Formerly known as 'gitlab-git-http-server'.
 
+v 8.21.1
+
+- Reject parameters that override upload fields
+
 v 8.21.0
 
 - Add route for group imports direct upload !455
