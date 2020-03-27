@@ -86,7 +86,7 @@ func (cd *contentDisposition) writeContentHeaders() {
 	}
 
 	cd.wroteHeader = true
-	contentType, contentDisposition := headers.SafeContentHeaders(cd.buf.Bytes(), cd.Header().Get(headers.ContentDispositionHeader))
+	contentType, contentDisposition := headers.SafeContentHeaders(cd.buf.Bytes(), cd.Header().Get(headers.ContentTypeHeader), cd.Header().Get(headers.ContentDispositionHeader))
 	cd.Header().Set(headers.ContentTypeHeader, contentType)
 	cd.Header().Set(headers.ContentDispositionHeader, contentDisposition)
 }

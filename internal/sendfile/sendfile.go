@@ -140,7 +140,7 @@ func sendFileFromDisk(w http.ResponseWriter, r *http.Request, file string) {
 
 		content.Seek(0, io.SeekStart)
 
-		contentType, contentDisposition := headers.SafeContentHeaders(data, w.Header().Get(headers.ContentDispositionHeader))
+		contentType, contentDisposition := headers.SafeContentHeaders(data, w.Header().Get(headers.ContentTypeHeader), w.Header().Get(headers.ContentDispositionHeader))
 		w.Header().Set(headers.ContentTypeHeader, contentType)
 		w.Header().Set(headers.ContentDispositionHeader, contentDisposition)
 	}

@@ -1,6 +1,7 @@
 package headers
 
 import (
+	"fmt"
 	"net/http"
 	"regexp"
 
@@ -14,11 +15,13 @@ var (
 	TextTypeRegex = regexp.MustCompile(`^text/*`)
 
 	VideoTypeRegex = regexp.MustCompile(`^video/*`)
+	AudioTypeRegex = regexp.MustCompile(`^audio/*`)
 
 	PdfTypeRegex = regexp.MustCompile(`application\/pdf`)
 
 	AttachmentRegex = regexp.MustCompile(`^attachment`)
 	InlineRegex     = regexp.MustCompile(`^inline`)
+	MimeTypeRegex   = regexp.MustCompile(`^(.+)\/(.+)$`)
 )
 
 // Mime types that can't be inlined. Usually subtypes of main types
@@ -29,30 +32,64 @@ var forbiddenInlineTypes = []*regexp.Regexp{SvgMimeTypeRegex}
 // allowed type that can't be inlined we must add it to the forbiddenInlineTypes var.
 // One example of this is the mime type "image". We allow all images to be
 // inlined except for SVGs.
-var allowedInlineTypes = []*regexp.Regexp{ImageTypeRegex, TextTypeRegex, VideoTypeRegex, PdfTypeRegex}
+var allowedInlineTypes = []*regexp.Regexp{ImageTypeRegex, TextTypeRegex, VideoTypeRegex, AudioTypeRegex, PdfTypeRegex}
 
-func SafeContentHeaders(data []byte, contentDisposition string) (string, string) {
-	contentType := safeContentType(data)
-	contentDisposition = safeContentDisposition(contentType, contentDisposition)
+func SafeContentHeaders(data []byte, existingContentType string, existingContentDisposition string) (string, string) {
+	contentType := safeContentType(data, existingContentType)
+	contentDisposition := safeContentDisposition(contentType, existingContentDisposition)
 	return contentType, contentDisposition
 }
 
-func safeContentType(data []byte) string {
+func safeContentType(data []byte, existingContentType string) string {
 	// Special case for svg because DetectContentType detects it as text
-	if svg.Is(data) {
+	if SvgMimeTypeRegex.MatchString(existingContentType) || svg.Is(data) {
 		return "image/svg+xml"
 	}
 
-	// Override any existing Content-Type header from other ResponseWriters
-	contentType := http.DetectContentType(data)
+	contentType := determineFinalContentType(existingContentType, http.DetectContentType(data))
 
-	// If the content is text type, we set to plain, because we don't
+	// If the content is text type, we set it to plain, because we don't
 	// want to render it inline if they're html or javascript
 	if isType(contentType, TextTypeRegex) {
 		return "text/plain; charset=utf-8"
 	}
 
 	return contentType
+}
+
+// Here we check whether contentType and detectedContentType are too different from each other.
+// Depending on that, we pass that the existing content type or the detected one
+func determineFinalContentType(existingContentType string, detectedContentType string) string {
+	// If existing Content-Type is blank we use the detected one
+	if existingContentType == "" {
+		return detectedContentType
+	}
+
+	// Get the first part of content type on both content types
+	// if they're not the same we return the detected content type
+	existingPrimaryType, err := primaryContentType(existingContentType)
+	if err != nil {
+		// If there is an error is because the Content Type
+		// received from Rails is invalid. We returned the detected one
+		return detectedContentType
+	}
+
+	currentPrimaryType, err := primaryContentType(detectedContentType)
+	if err != nil {
+		// Having an error here is bad. It's strange we cannot detect
+		// the content type. For the sake of security, we return a
+		// application/octect-stream contentType to return an
+		// attachment Content-Disposition
+		return "application/octet-stream"
+	}
+
+	// If the primary existing content type matches the detected
+	// one, we return the existing content type from the response
+	if existingPrimaryType == currentPrimaryType {
+		return existingContentType
+	}
+
+	return detectedContentType
 }
 
 func safeContentDisposition(contentType string, contentDisposition string) string {
@@ -106,4 +143,14 @@ func inlineDisposition(contentDisposition string) string {
 
 func isType(contentType string, mimeType *regexp.Regexp) bool {
 	return mimeType.MatchString(contentType)
+}
+
+func primaryContentType(contentType string) (string, error) {
+	result := MimeTypeRegex.FindStringSubmatch(contentType)
+
+	if len(result) != 3 {
+		return "", fmt.Errorf("invalid Content Type")
+	}
+
+	return result[1], nil
 }
