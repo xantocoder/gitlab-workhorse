@@ -2,6 +2,10 @@
 
 Formerly known as 'gitlab-git-http-server'.
 
+v 8.21.2
+
+- Sign artifact multipart fields in Workhorse
+
 v 8.21.1
 
 - Reject parameters that override upload fields
