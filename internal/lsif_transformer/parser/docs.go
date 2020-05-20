@@ -13,19 +13,19 @@ type Line struct {
 
 type Docs struct {
 	Root      string
-	Entries   map[string]string
-	DocRanges map[string][]string
+	Entries   map[FlexInt]string
+	DocRanges map[FlexInt][]FlexInt
 	Ranges    *Ranges
 }
 
 type Document struct {
-	Id  string `json:"id"`
-	Uri string `json:"uri"`
+	Id  FlexInt `json:"id"`
+	Uri string  `json:"uri"`
 }
 
 type DocumentRange struct {
-	OutV     string   `json:"outV"`
-	RangeIds []string `json:"inVs"`
+	OutV     FlexInt   `json:"outV"`
+	RangeIds []FlexInt `json:"inVs"`
 }
 
 type Metadata struct {
@@ -40,8 +40,8 @@ func NewDocs(tempDir string) (*Docs, error) {
 
 	return &Docs{
 		Root:      "file:///",
-		Entries:   make(map[string]string),
-		DocRanges: make(map[string][]string),
+		Entries:   make(map[FlexInt]string),
+		DocRanges: make(map[FlexInt][]FlexInt),
 		Ranges:    ranges,
 	}, nil
 }

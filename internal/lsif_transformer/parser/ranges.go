@@ -10,37 +10,37 @@ const Definitions = "definitions"
 const References = "references"
 
 type Ranges struct {
-	Entries map[string]*Range
-	DefRefs map[string]*DefRef
+	Entries map[FlexInt]*Range
+	DefRefs map[FlexInt]*DefRef
 	Hovers  *Hovers
 }
 
 type RawRange struct {
-	Id   string `json:"id"`
-	Data Range  `json:"start"`
+	Id   FlexInt `json:"id"`
+	Data Range   `json:"start"`
 }
 
 type Range struct {
-	Line      int `json:"line"`
-	Character int `json:"character"`
-	RefId     string
+	Line      uint32 `json:"line"`
+	Character uint32 `json:"character"`
+	RefId     FlexInt
 }
 
 type RawDefRef struct {
-	Property string   `json:"property"`
-	RefId    string   `json:"outV"`
-	RangeIds []string `json:"inVs"`
-	DocId    string   `json:"document"`
+	Property string    `json:"property"`
+	RefId    FlexInt   `json:"outV"`
+	RangeIds []FlexInt `json:"inVs"`
+	DocId    FlexInt   `json:"document"`
 }
 
 type DefRef struct {
 	Line  string
-	DocId string
+	DocId FlexInt
 }
 
 type SerializedRange struct {
-	StartLine      int             `json:"start_line"`
-	StartChar      int             `json:"start_char"`
+	StartLine      uint32          `json:"start_line"`
+	StartChar      uint32          `json:"start_char"`
 	DefinitionPath string          `json:"definition_path,omitempty"`
 	Hover          json.RawMessage `json:"hover"`
 }
@@ -52,8 +52,8 @@ func NewRanges(tempDir string) (*Ranges, error) {
 	}
 
 	return &Ranges{
-		Entries: make(map[string]*Range),
-		DefRefs: make(map[string]*DefRef),
+		Entries: make(map[FlexInt]*Range),
+		DefRefs: make(map[FlexInt]*DefRef),
 		Hovers:  hovers,
 	}, nil
 }
@@ -75,7 +75,7 @@ func (r *Ranges) Read(label string, line []byte) error {
 	return nil
 }
 
-func (r *Ranges) Serialize(f io.Writer, rangeIds []string, docs map[string]string) error {
+func (r *Ranges) Serialize(f io.Writer, rangeIds []FlexInt, docs map[FlexInt]string) error {
 	encoder := json.NewEncoder(f)
 	n := len(rangeIds)
 
@@ -108,7 +108,7 @@ func (r *Ranges) Serialize(f io.Writer, rangeIds []string, docs map[string]strin
 	return nil
 }
 
-func (r *Ranges) definitionPathFor(docs map[string]string, refId string) string {
+func (r *Ranges) definitionPathFor(docs map[FlexInt]string, refId FlexInt) string {
 	defRef, ok := r.DefRefs[refId]
 	if !ok {
 		return ""
@@ -153,7 +153,7 @@ func (r *Ranges) addItem(line []byte) error {
 	defRange := r.Entries[defRef.RangeIds[0]]
 
 	r.DefRefs[defRef.RefId] = &DefRef{
-		Line:  strconv.Itoa(defRange.Line + 1),
+		Line:  strconv.Itoa(int(defRange.Line + 1)),
 		DocId: defRef.DocId,
 	}
 
