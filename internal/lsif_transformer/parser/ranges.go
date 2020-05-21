@@ -3,16 +3,21 @@ package parser
 import (
 	"encoding/json"
 	"io"
+	"io/ioutil"
+	"os"
 	"strconv"
 )
 
-const Definitions = "definitions"
-const References = "references"
+const (
+	Definitions    = "definitions"
+	References     = "references"
+	RangeChunkSize = 12
+)
 
 type Ranges struct {
-	Entries map[FlexInt]*Range
 	DefRefs map[FlexInt]*DefRef
 	Hovers  *Hovers
+	File    *os.File
 }
 
 type RawRange struct {
@@ -51,10 +56,15 @@ func NewRanges(tempDir string) (*Ranges, error) {
 		return nil, err
 	}
 
+	file, err := ioutil.TempFile(tempDir, "ranges")
+	if err != nil {
+		return nil, err
+	}
+
 	return &Ranges{
-		Entries: make(map[FlexInt]*Range),
 		DefRefs: make(map[FlexInt]*DefRef),
 		Hovers:  hovers,
+		File:    file,
 	}, nil
 }
 
@@ -84,7 +94,11 @@ func (r *Ranges) Serialize(f io.Writer, rangeIds []FlexInt, docs map[FlexInt]str
 	}
 
 	for i, rangeId := range rangeIds {
-		entry := r.Entries[rangeId]
+		entry, err := r.getRange(rangeId)
+		if err != nil {
+			continue
+		}
+
 		serializedRange := SerializedRange{
 			StartLine:      entry.Line,
 			StartChar:      entry.Character,
@@ -108,6 +122,18 @@ func (r *Ranges) Serialize(f io.Writer, rangeIds []FlexInt, docs map[FlexInt]str
 	return nil
 }
 
+func (r *Ranges) Close() error {
+	if err := r.File.Close(); err != nil {
+		return err
+	}
+
+	if err := os.Remove(r.File.Name()); err != nil {
+		return err
+	}
+
+	return r.Hovers.Close()
+}
+
 func (r *Ranges) definitionPathFor(docs map[FlexInt]string, refId FlexInt) string {
 	defRef, ok := r.DefRefs[refId]
 	if !ok {
@@ -125,9 +151,8 @@ func (r *Ranges) addRange(line []byte) error {
 		return err
 	}
 
-	r.Entries[rg.Id] = &rg.Data
-
-	return nil
+	offset := int64(rg.Id * RangeChunkSize)
+	return WriteChunks(r.File, offset, &rg.Data)
 }
 
 func (r *Ranges) addItem(line []byte) error {
@@ -141,21 +166,39 @@ func (r *Ranges) addItem(line []byte) error {
 	}
 
 	for _, rangeId := range defRef.RangeIds {
-		if entry, ok := r.Entries[rangeId]; ok {
-			entry.RefId = defRef.RefId
+		offset := int64(rangeId*RangeChunkSize + 8)
+		if err := WriteChunks(r.File, offset, &defRef.RefId); err != nil {
+			return err
 		}
 	}
 
-	if defRef.Property != Definitions {
-		return nil
+	if defRef.Property == Definitions {
+		return r.addDefRef(&defRef)
 	}
 
-	defRange := r.Entries[defRef.RangeIds[0]]
+	return nil
+}
+
+func (r *Ranges) addDefRef(defRef *RawDefRef) error {
+	offset := int64(defRef.RangeIds[0] * RangeChunkSize)
+	var line uint32
+	if err := ReadChunks(r.File, offset, &line); err != nil {
+		return err
+	}
 
 	r.DefRefs[defRef.RefId] = &DefRef{
-		Line:  strconv.Itoa(int(defRange.Line + 1)),
+		Line:  strconv.Itoa(int(line + 1)),
 		DocId: defRef.DocId,
 	}
 
 	return nil
+}
+
+func (r *Ranges) getRange(rangeId FlexInt) (*Range, error) {
+	var rg Range
+	if err := ReadChunks(r.File, int64(rangeId*RangeChunkSize), &rg); err != nil {
+		return nil, err
+	}
+
+	return &rg, nil
 }

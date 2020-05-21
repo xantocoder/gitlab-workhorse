@@ -83,6 +83,14 @@ func (h *Hovers) For(refId FlexInt) json.RawMessage {
 	return json.RawMessage(hover)
 }
 
+func (h *Hovers) Close() error {
+	if err := h.File.Close(); err != nil {
+		return err
+	}
+
+	return os.Remove(h.File.Name())
+}
+
 func (h *Hovers) addData(line []byte) error {
 	var rawData RawData
 	if err := json.Unmarshal(line, &rawData); err != nil {

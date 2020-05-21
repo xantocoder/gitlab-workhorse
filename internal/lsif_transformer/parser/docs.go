@@ -3,7 +3,6 @@ package parser
 import (
 	"archive/zip"
 	"encoding/json"
-	"os"
 	"strings"
 )
 
@@ -73,18 +72,7 @@ func (d *Docs) Read(line []byte) error {
 }
 
 func (d *Docs) Close() error {
-	return os.Remove(d.Ranges.Hovers.File.Name())
-}
-
-func (d *Docs) addMetadata(line []byte) error {
-	var metadata Metadata
-	if err := json.Unmarshal(line, &metadata); err != nil {
-		return err
-	}
-
-	d.Root = strings.TrimSpace(metadata.Root) + "/"
-
-	return nil
+	return d.Ranges.Close()
 }
 
 func (d *Docs) SerializeEntries(w *zip.Writer) error {
@@ -100,6 +88,17 @@ func (d *Docs) SerializeEntries(w *zip.Writer) error {
 			return err
 		}
 	}
+
+	return nil
+}
+
+func (d *Docs) addMetadata(line []byte) error {
+	var metadata Metadata
+	if err := json.Unmarshal(line, &metadata); err != nil {
+		return err
+	}
+
+	d.Root = strings.TrimSpace(metadata.Root) + "/"
 
 	return nil
 }

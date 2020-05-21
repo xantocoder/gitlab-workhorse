@@ -2,7 +2,6 @@ package parser
 
 import (
 	"bytes"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -13,10 +12,14 @@ func TestRangesRead(t *testing.T) {
 	defer cleanup()
 
 	firstRange := Range{Line: 1, Character: 2, RefId: 3}
-	require.Equal(t, &firstRange, r.Entries[1])
+	rg, err := r.getRange(1)
+	require.NoError(t, err)
+	require.Equal(t, &firstRange, rg)
 
 	secondRange := Range{Line: 5, Character: 4, RefId: 3}
-	require.Equal(t, &secondRange, r.Entries[2])
+	rg, err = r.getRange(2)
+	require.NoError(t, err)
+	require.Equal(t, &secondRange, rg)
 }
 
 func TestSerialize(t *testing.T) {
@@ -44,7 +47,7 @@ func setup(t *testing.T) (*Ranges, func()) {
 	require.NoError(t, r.Read("item", []byte(`{"id":"5","label":"item","property":"references","outV":3,"inVs":["2"]}`)))
 
 	cleanup := func() {
-		require.NoError(t, os.Remove(r.Hovers.File.Name()))
+		require.NoError(t, r.Close())
 	}
 
 	return r, cleanup

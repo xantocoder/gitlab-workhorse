@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -12,7 +11,7 @@ func TestHoversRead(t *testing.T) {
 
 	require.Equal(t, `[{"value":"hello"}]`, string(h.For(1)))
 
-	require.NoError(t, os.Remove(h.File.Name()))
+	require.NoError(t, h.Close())
 }
 
 func setupHovers(t *testing.T) *Hovers {
