@@ -19,7 +19,9 @@ func TestWriteChunks(t *testing.T) {
 	defer os.Remove(f.Name())
 
 	c := Chunk{A: 1, B: 2}
-	require.NoError(t, WriteChunks(f, 2, &c))
+	n, err := WriteChunks(f, 2, &c)
+	require.Equal(t, 4, n)
+	require.NoError(t, err)
 
 	content, err := ioutil.ReadAll(f)
 	require.NoError(t, err)
@@ -32,8 +34,14 @@ func TestReadChunks(t *testing.T) {
 	defer os.Remove(f.Name())
 
 	r := Range{Line: 100, Character: 123}
-	require.NoError(t, WriteChunks(f, 12, &r))
-	require.NoError(t, WriteChunks(f, 20, FlexInt(234)))
+
+	n, err := WriteChunks(f, 12, &r)
+	require.NoError(t, err)
+	require.Equal(t, 12, n)
+
+	n, err = WriteChunks(f, 20, FlexInt(234))
+	require.NoError(t, err)
+	require.Equal(t, 4, n)
 
 	var rg Range
 	require.NoError(t, ReadChunks(f, 12, &rg))

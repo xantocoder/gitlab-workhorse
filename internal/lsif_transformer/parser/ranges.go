@@ -152,7 +152,8 @@ func (r *Ranges) addRange(line []byte) error {
 	}
 
 	offset := int64(rg.Id * RangeChunkSize)
-	return WriteChunks(r.File, offset, &rg.Data)
+	_, err := WriteChunks(r.File, offset, &rg.Data)
+	return err
 }
 
 func (r *Ranges) addItem(line []byte) error {
@@ -167,7 +168,7 @@ func (r *Ranges) addItem(line []byte) error {
 
 	for _, rangeId := range defRef.RangeIds {
 		offset := int64(rangeId*RangeChunkSize + 8)
-		if err := WriteChunks(r.File, offset, &defRef.RefId); err != nil {
+		if _, err := WriteChunks(r.File, offset, &defRef.RefId); err != nil {
 			return err
 		}
 	}

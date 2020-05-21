@@ -6,15 +6,14 @@ import (
 	"os"
 )
 
-func WriteChunks(f *os.File, offset int64, data interface{}) error {
+func WriteChunks(f *os.File, offset int64, data interface{}) (int, error) {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, data)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	_, err = f.WriteAt(buf.Bytes(), offset)
-	return err
+	return f.WriteAt(buf.Bytes(), offset)
 }
 
 func ReadChunks(f *os.File, offset int64, data interface{}) error {

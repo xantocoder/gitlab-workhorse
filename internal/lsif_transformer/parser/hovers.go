@@ -136,7 +136,8 @@ func (h *Hovers) addData(line []byte) error {
 	offset := Offset{At: h.CurrentOffset, Len: l}
 	h.CurrentOffset += l
 
-	return WriteChunks(h.IndexFile, int64(rawData.Id*OffsetChunkSize), &offset)
+	_, err = WriteChunks(h.IndexFile, int64(rawData.Id*OffsetChunkSize), &offset)
+	return err
 }
 
 func (h *Hovers) addHoverRef(line []byte) error {
@@ -150,7 +151,8 @@ func (h *Hovers) addHoverRef(line []byte) error {
 		return err
 	}
 
-	return WriteChunks(h.IndexFile, int64(hoverRef.ResultSetId*OffsetChunkSize), &offset)
+	_, err := WriteChunks(h.IndexFile, int64(hoverRef.ResultSetId*OffsetChunkSize), &offset)
+	return err
 }
 
 func (h *Hovers) addResultSetRef(line []byte) error {
@@ -164,5 +166,6 @@ func (h *Hovers) addResultSetRef(line []byte) error {
 		return nil
 	}
 
-	return WriteChunks(h.IndexFile, int64(ref.RefId*OffsetChunkSize), &offset)
+	_, err := WriteChunks(h.IndexFile, int64(ref.RefId*OffsetChunkSize), &offset)
+	return err
 }

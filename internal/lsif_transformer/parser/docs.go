@@ -3,6 +3,8 @@ package parser
 import (
 	"archive/zip"
 	"encoding/json"
+	"io/ioutil"
+	"os"
 	"strings"
 )
 
@@ -11,10 +13,12 @@ type Line struct {
 }
 
 type Docs struct {
-	Root      string
-	Entries   map[FlexInt]string
-	DocRanges map[FlexInt][]FlexInt
-	Ranges    *Ranges
+	Root          string
+	Entries       map[FlexInt]string
+	DocRanges     map[FlexInt]*Offset
+	Ranges        *Ranges
+	File          *os.File
+	CurrentOffset uint32
 }
 
 type Document struct {
@@ -32,16 +36,23 @@ type Metadata struct {
 }
 
 func NewDocs(tempDir string) (*Docs, error) {
+	file, err := ioutil.TempFile(tempDir, "docs")
+	if err != nil {
+		return nil, err
+	}
+
 	ranges, err := NewRanges(tempDir)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Docs{
-		Root:      "file:///",
-		Entries:   make(map[FlexInt]string),
-		DocRanges: make(map[FlexInt][]FlexInt),
-		Ranges:    ranges,
+		Root:          "file:///",
+		Entries:       make(map[FlexInt]string),
+		DocRanges:     make(map[FlexInt]*Offset),
+		Ranges:        ranges,
+		File:          file,
+		CurrentOffset: 0,
 	}, nil
 }
 
@@ -72,6 +83,14 @@ func (d *Docs) Read(line []byte) error {
 }
 
 func (d *Docs) Close() error {
+	if err := d.File.Close(); err != nil {
+		return err
+	}
+
+	if err := os.Remove(d.File.Name()); err != nil {
+		return err
+	}
+
 	return d.Ranges.Close()
 }
 
@@ -84,7 +103,12 @@ func (d *Docs) SerializeEntries(w *zip.Writer) error {
 			return err
 		}
 
-		if err := d.Ranges.Serialize(f, d.DocRanges[id], d.Entries); err != nil {
+		ranges, err := d.getRangeIds(id)
+		if err != nil {
+			return err
+		}
+
+		if err := d.Ranges.Serialize(f, ranges, d.Entries); err != nil {
 			return err
 		}
 	}
@@ -120,7 +144,28 @@ func (d *Docs) addDocRanges(line []byte) error {
 		return err
 	}
 
-	d.DocRanges[docRange.OutV] = docRange.RangeIds
+	ranges := docRange.RangeIds
+	n, err := WriteChunks(d.File, int64(d.CurrentOffset), &ranges)
+	if err != nil {
+		return err
+	}
+
+	d.DocRanges[docRange.OutV] = &Offset{At: d.CurrentOffset, Len: uint32(len(ranges))}
+	d.CurrentOffset += uint32(n)
 
 	return nil
+}
+
+func (d *Docs) getRangeIds(id FlexInt) ([]FlexInt, error) {
+	offset, ok := d.DocRanges[id]
+	if !ok || offset == nil {
+		return []FlexInt{}, nil
+	}
+
+	ranges := make([]FlexInt, offset.Len)
+	if err := ReadChunks(d.File, int64(offset.At), &ranges); err != nil {
+		return []FlexInt{}, err
+	}
+
+	return ranges, nil
 }

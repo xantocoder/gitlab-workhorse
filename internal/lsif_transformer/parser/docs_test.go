@@ -37,5 +37,7 @@ func TestReadContainsLine(t *testing.T) {
 
 	require.NoError(t, d.Read(line))
 
-	require.Equal(t, []FlexInt{2, 3}, d.DocRanges[1])
+	rangeIds, err := d.getRangeIds(1)
+	require.NoError(t, err)
+	require.Equal(t, []FlexInt{2, 3}, rangeIds)
 }
