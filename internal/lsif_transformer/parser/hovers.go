@@ -6,15 +6,17 @@ import (
 	"os"
 )
 
+const OffsetChunkSize = 8
+
 type Offset struct {
-	At  int
-	Len int
+	At  uint32
+	Len uint32
 }
 
 type Hovers struct {
-	Offsets       map[FlexInt]*Offset
 	File          *os.File
-	CurrentOffset int
+	IndexFile     *os.File
+	CurrentOffset uint32
 }
 
 type RawResult struct {
@@ -42,9 +44,14 @@ func NewHovers(tempDir string) (*Hovers, error) {
 		return nil, err
 	}
 
+	indexFile, err := ioutil.TempFile(tempDir, "hovers-indexes")
+	if err != nil {
+		return nil, err
+	}
+
 	return &Hovers{
-		Offsets:       make(map[FlexInt]*Offset),
 		File:          file,
+		IndexFile:     indexFile,
 		CurrentOffset: 0,
 	}, nil
 }
@@ -69,8 +76,8 @@ func (h *Hovers) Read(label string, line []byte) error {
 }
 
 func (h *Hovers) For(refId FlexInt) json.RawMessage {
-	offset, ok := h.Offsets[refId]
-	if !ok || offset == nil {
+	var offset Offset
+	if err := ReadChunks(h.IndexFile, int64(refId*OffsetChunkSize), &offset); err != nil || offset.Len == 0 {
 		return nil
 	}
 
@@ -85,6 +92,14 @@ func (h *Hovers) For(refId FlexInt) json.RawMessage {
 
 func (h *Hovers) Close() error {
 	if err := h.File.Close(); err != nil {
+		return err
+	}
+
+	if err := h.IndexFile.Close(); err != nil {
+		return err
+	}
+
+	if err := os.Remove(h.IndexFile.Name()); err != nil {
 		return err
 	}
 
@@ -117,10 +132,11 @@ func (h *Hovers) addData(line []byte) error {
 		return err
 	}
 
-	h.Offsets[rawData.Id] = &Offset{At: h.CurrentOffset, Len: n}
-	h.CurrentOffset += n
+	l := uint32(n)
+	offset := Offset{At: h.CurrentOffset, Len: l}
+	h.CurrentOffset += l
 
-	return nil
+	return WriteChunks(h.IndexFile, int64(rawData.Id*OffsetChunkSize), &offset)
 }
 
 func (h *Hovers) addHoverRef(line []byte) error {
@@ -129,9 +145,12 @@ func (h *Hovers) addHoverRef(line []byte) error {
 		return err
 	}
 
-	h.Offsets[hoverRef.ResultSetId] = h.Offsets[hoverRef.HoverId]
+	var offset Offset
+	if err := ReadChunks(h.IndexFile, int64(hoverRef.HoverId*OffsetChunkSize), &offset); err != nil {
+		return err
+	}
 
-	return nil
+	return WriteChunks(h.IndexFile, int64(hoverRef.ResultSetId*OffsetChunkSize), &offset)
 }
 
 func (h *Hovers) addResultSetRef(line []byte) error {
@@ -140,13 +159,10 @@ func (h *Hovers) addResultSetRef(line []byte) error {
 		return err
 	}
 
-	offset, ok := h.Offsets[ref.ResultSetId]
-	if !ok {
+	var offset Offset
+	if err := ReadChunks(h.IndexFile, int64(ref.ResultSetId*OffsetChunkSize), &offset); err != nil {
 		return nil
 	}
 
-	h.Offsets[ref.RefId] = offset
-	delete(h.Offsets, ref.ResultSetId)
-
-	return nil
+	return WriteChunks(h.IndexFile, int64(ref.RefId*OffsetChunkSize), &offset)
 }

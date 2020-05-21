@@ -187,7 +187,7 @@ func (r *Ranges) addDefRef(defRef *RawDefRef) error {
 	}
 
 	r.DefRefs[defRef.RefId] = &DefRef{
-		Line:  strconv.Itoa(int(line + 1)),
+		Line:  strconv.FormatInt(int64(line+1), 10),
 		DocId: defRef.DocId,
 	}
 
