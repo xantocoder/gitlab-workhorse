@@ -15,9 +15,8 @@ const (
 )
 
 type Ranges struct {
-	DefRefs map[FlexInt]*DefRef
-	Hovers  *Hovers
-	File    *os.File
+	Hovers *Hovers
+	File   *os.File
 }
 
 type RawRange struct {
@@ -39,7 +38,7 @@ type RawDefRef struct {
 }
 
 type DefRef struct {
-	Line  string
+	Line  uint32
 	DocId FlexInt
 }
 
@@ -62,9 +61,8 @@ func NewRanges(tempDir string) (*Ranges, error) {
 	}
 
 	return &Ranges{
-		DefRefs: make(map[FlexInt]*DefRef),
-		Hovers:  hovers,
-		File:    file,
+		Hovers: hovers,
+		File:   file,
 	}, nil
 }
 
@@ -135,14 +133,12 @@ func (r *Ranges) Close() error {
 }
 
 func (r *Ranges) definitionPathFor(docs map[FlexInt]string, refId FlexInt) string {
-	defRef, ok := r.DefRefs[refId]
-	if !ok {
+	var defRef DefRef
+	if err := ReadChunks(r.File, int64(refId*RangeChunkSize), &defRef); err != nil || defRef.DocId == 0 {
 		return ""
 	}
 
-	defPath := docs[defRef.DocId] + "#L" + defRef.Line
-
-	return defPath
+	return docs[defRef.DocId] + "#L" + strconv.Itoa(int(defRef.Line))
 }
 
 func (r *Ranges) addRange(line []byte) error {
@@ -187,12 +183,9 @@ func (r *Ranges) addDefRef(defRef *RawDefRef) error {
 		return err
 	}
 
-	r.DefRefs[defRef.RefId] = &DefRef{
-		Line:  strconv.FormatInt(int64(line+1), 10),
-		DocId: defRef.DocId,
-	}
-
-	return nil
+	dr := DefRef{Line: line + 1, DocId: defRef.DocId}
+	_, err := WriteChunks(r.File, int64(defRef.RefId*RangeChunkSize), &dr)
+	return err
 }
 
 func (r *Ranges) getRange(rangeId FlexInt) (*Range, error) {
