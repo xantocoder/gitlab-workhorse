@@ -1,5 +1,11 @@
 # Changelog for gitlab-workhorse
 
+## v8.31.1
+
+### Security
+- Limit memory footprint of a command that generates ZIP artifacts metadata
+  https://gitlab.com/gitlab-org/gitlab-workhorse/-/merge_requests/
+
 ## v8.31.0
 
 ### Added
