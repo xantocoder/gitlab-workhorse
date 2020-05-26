@@ -1,5 +1,15 @@
 # Changelog for gitlab-workhorse
 
+## v8.25.3
+
+### Other
+- Add automatic changelog generation
+  https://gitlab.com/gitlab-org/gitlab-workhorse/-/merge_requests/484
+
+### Security
+- Limit memory footprint of a command that generates ZIP artifacts metadata
+  https://gitlab.com/gitlab-org/gitlab-workhorse/-/merge_requests/
+
 Formerly known as 'gitlab-git-http-server'.
 
 v 8.25.2
