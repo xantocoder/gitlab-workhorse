@@ -1,5 +1,15 @@
 # Changelog for gitlab-workhorse
 
+## v8.31.2
+
+### Fixed
+- Disable compression for open archive
+  https://gitlab.com/gitlab-org/gitlab-workhorse/-/merge_requests/508
+  Contributed by Georges-Etienne Legendre
+- Fix Content-Length set prior to SendUrl injection
+  https://gitlab.com/gitlab-org/gitlab-workhorse/-/merge_requests/496
+  Contributed by Georges-Etienne Legendre
+
 ## v8.31.1
 
 ### Security
