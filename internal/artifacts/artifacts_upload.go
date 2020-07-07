@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"syscall"
 
+	//"github.com/gabriel-vasile/mimetype"
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/labkit/log"
 
@@ -36,6 +37,11 @@ type artifactsUploadProcessor struct {
 	upload.SavedFileTracker
 }
 
+type storeFileResult struct {
+	handler *filestore.FileHandler
+	err     error
+}
+
 func (a *artifactsUploadProcessor) generateMetadataFromZip(ctx context.Context, file *filestore.FileHandler) (*filestore.FileHandler, error) {
 	metaReader, metaWriter := io.Pipe()
 	defer metaWriter.Close()
@@ -53,49 +59,58 @@ func (a *artifactsUploadProcessor) generateMetadataFromZip(ctx context.Context, 
 		fileName = file.RemoteURL
 	}
 
-	zipMd := exec.CommandContext(ctx, "gitlab-zip-metadata", fileName)
+	// mime, err := mimetype.DetectFile(fileName)
+	// if err != nil {
+	// }
+
+	done := make(chan storeFileResult)
+	go func() {
+		handler, err := filestore.SaveFileFromReader(ctx, metaReader, -1, metaOpts)
+
+		done <- storeFileResult{handler: handler, err: err}
+	}()
+
+	err := a.processZipMetadata(ctx, fileName, metaWriter)
+	if err != nil {
+		return nil, err
+	}
+
+	metaWriter.Close()
+	result := <-done
+	return result.handler, result.err
+}
+
+func (a *artifactsUploadProcessor) processZipMetadata(ctx context.Context, file string, writer io.Writer) error {
+	zipMd := exec.CommandContext(ctx, "gitlab-zip-metadata", file)
 	zipMd.Stderr = log.ContextLogger(ctx).Writer()
 	zipMd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	zipMd.Stdout = metaWriter
+	zipMd.Stdout = writer
 
 	if err := zipMd.Start(); err != nil {
-		return nil, err
+		return err
 	}
 	defer helper.CleanUpProcessGroup(zipMd)
 
-	type saveResult struct {
-		error
-		*filestore.FileHandler
-	}
-	done := make(chan saveResult)
-	go func() {
-		var result saveResult
-		result.FileHandler, result.error = filestore.SaveFileFromReader(ctx, metaReader, -1, metaOpts)
-
-		done <- result
-	}()
-
-	if err := zipMd.Wait(); err != nil {
+	err := zipMd.Wait()
+	if err != nil {
 		st, ok := helper.ExitStatus(err)
 
 		if !ok {
-			return nil, err
+			return err
 		}
 
 		zipSubcommandsErrorsCounter.WithLabelValues(zipartifacts.ErrorLabelByCode(st)).Inc()
 
 		if st == zipartifacts.CodeNotZip {
-			return nil, nil
+			return nil
 		}
 
 		if st == zipartifacts.CodeLimitsReached {
-			return nil, zipartifacts.ErrBadMetadata
+			return zipartifacts.ErrBadMetadata
 		}
 	}
 
-	metaWriter.Close()
-	result := <-done
-	return result.FileHandler, result.error
+	return err
 }
 
 func (a *artifactsUploadProcessor) ProcessFile(ctx context.Context, formName string, file *filestore.FileHandler, writer *multipart.Writer) error {
