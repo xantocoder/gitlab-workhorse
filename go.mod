@@ -18,6 +18,7 @@ require (
 	github.com/jfbus/httprs v0.0.0-20190827093123-b0af8319bb15
 	github.com/johannesboyne/gofakes3 v0.0.0-20200510090907-02d71f533bec
 	github.com/jpillora/backoff v0.0.0-20170918002102-8eab2debe79d
+	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/prometheus/client_golang v1.0.0
 	github.com/rafaeljusto/redigomock v0.0.0-20190202135759-257e089e14a1
 	github.com/sebest/xff v0.0.0-20160910043805-6c115e0ffa35
