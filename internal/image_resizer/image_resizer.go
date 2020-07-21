@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/jpeg"
 	"image/png"
+	"time"
 
 	"github.com/nfnt/resize"
 )
@@ -23,16 +24,19 @@ func log(args ...interface{}) {
 }
 
 func resizeImage(data []byte, requestedWidth uint) (image.Image, ImageFormat, error) {
-	log("Resizing image data ...")
+	log("Resizing image data (", len(data), "bytes)")
 
+	start := time.Now()
 	decodedImage, format, err := tryDecode(data)
 	if err != nil {
 		return nil, format, err
 	}
+	log("Decoding image data took", time.Now().Sub(start))
 
+	start = time.Now()
 	resizedImage := resize.Resize(requestedWidth, 0, decodedImage, resize.Lanczos3)
 
-	defer log("Finished loading image data, took", 10, "seconds")
+	log("Resizing image data took", time.Now().Sub(start))
 
 	return resizedImage, format, err
 }
