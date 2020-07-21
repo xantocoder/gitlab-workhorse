@@ -1,4 +1,4 @@
-package image_resizer
+package imageresizer
 
 import (
 	"fmt"

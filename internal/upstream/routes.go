@@ -17,7 +17,7 @@ import (
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/config"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/git"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/helper"
-	"gitlab.com/gitlab-org/gitlab-workhorse/internal/image_resizer"
+	"gitlab.com/gitlab-org/gitlab-workhorse/internal/imageresizer"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/lfs"
 	proxypkg "gitlab.com/gitlab-org/gitlab-workhorse/internal/proxy"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/queueing"
@@ -154,7 +154,7 @@ func buildProxy(backend *url.URL, version string, rt http.RoundTripper) http.Han
 		git.SendSnapshot,
 		artifacts.SendEntry,
 		sendurl.SendURL,
-		image_resizer.ImageResizer,
+		imageresizer.ImageResizer,
 	)
 }
 
