@@ -1,7 +1,6 @@
 package imageresizer
 
 import (
-	"errors"
 	"fmt"
 	"image/jpeg"
 	"image/png"
@@ -117,10 +116,6 @@ func (e *entry) Inject(w http.ResponseWriter, r *http.Request, paramsData string
 		w.WriteHeader(http.StatusOK)
 		err := jpeg.Encode(w, resizedImg, nil)
 		helper.LogError(r, err)
-
-	case ImageFormatUnknown:
-		//TODO: maybe this should be a 4xx instead?
-		helper.Fail500(w, r, errors.New("Unsupported image format (must be PNG or JPEG)"))
 
 	default:
 		helper.Fail500(w, r, fmt.Errorf("Unexpected format %v", format))
