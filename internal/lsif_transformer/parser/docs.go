@@ -10,13 +10,6 @@ type Line struct {
 	Type string `json:"label"`
 }
 
-type Docs struct {
-	Root      string
-	Entries   map[Id]string
-	DocRanges map[Id][]Id
-	Ranges    *Ranges
-}
-
 type Document struct {
 	Id  Id     `json:"id"`
 	Uri string `json:"uri"`

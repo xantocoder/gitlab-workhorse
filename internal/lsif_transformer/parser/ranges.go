@@ -12,25 +12,6 @@ const (
 	references  = "references"
 )
 
-type Ranges struct {
-	DefRefs           map[Id]Item
-	References        map[Id][]Item
-	Hovers            *Hovers
-	Cache             *cache
-	ProcessReferences bool
-}
-
-type RawRange struct {
-	Id   Id    `json:"id"`
-	Data Range `json:"start"`
-}
-
-type Range struct {
-	Line      int32 `json:"line"`
-	Character int32 `json:"character"`
-	RefId     Id
-}
-
 type RawItem struct {
 	Property string `json:"property"`
 	RefId    Id     `json:"outV"`
@@ -178,6 +159,25 @@ func (r *Ranges) addRange(line []byte) error {
 	}
 
 	return r.Cache.SetEntry(rg.Id, &rg.Data)
+}
+
+type Ranges struct {
+	DefRefs           map[Id]Item
+	References        map[Id][]Item
+	Hovers            *Hovers
+	Cache             *cache
+	ProcessReferences bool
+}
+
+type RawRange struct {
+	Id   Id    `json:"id"`
+	Data Range `json:"start"`
+}
+
+type Range struct {
+	Line      int32 `json:"line"`
+	Character int32 `json:"character"`
+	RefId     Id
 }
 
 func (r *Ranges) addItem(line []byte) error {
