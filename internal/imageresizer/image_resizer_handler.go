@@ -2,8 +2,6 @@ package imageresizer
 
 import (
 	"fmt"
-	"image/jpeg"
-	"image/png"
 	"io"
 	"io/ioutil"
 	"net"
@@ -111,18 +109,20 @@ func (e *entry) Inject(w http.ResponseWriter, r *http.Request, paramsData string
 
 	fmt.Println("Image resized, format:", format)
 
-	switch format {
-	case ImageFormatPNG:
-		w.WriteHeader(http.StatusOK)
-		err := png.Encode(w, resizedImg)
-		helper.LogError(r, err)
-
+	var contentType string
+  switch format {
 	case ImageFormatJPEG:
-		w.WriteHeader(http.StatusOK)
-		err := jpeg.Encode(w, resizedImg, nil)
-		helper.LogError(r, err)
+		contentType = "image/jpeg"
+	case ImageFormatPNG:
+		contentType = "image/png"
+	}
 
-	default:
+	if contentType != "" {
+		// TODO: this is not working...
+		w.Header().Set("Content-Type", contentType)
+		w.WriteHeader(http.StatusOK)
+		w.Write(resizedImg)
+	} else {
 		helper.Fail500(w, r, fmt.Errorf("Unexpected format %v", format))
 	}
 }

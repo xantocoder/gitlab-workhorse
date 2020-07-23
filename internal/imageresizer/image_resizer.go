@@ -24,43 +24,70 @@ func log(args ...interface{}) {
 	fmt.Println(args...)
 }
 
-func resizeImage(data []byte, requestedWidth uint, resizeImplementation string) (image.Image, ImageFormat, error) {
+func resizeImage(data []byte, requestedWidth uint, resizeImplementation string) ([]byte, ImageFormat, error) {
 	log("Resizing image data (", len(data), "bytes)")
 
+	if resizeImplementation == "nfnt/resize" {
+		return nfntResize(data, requestedWidth)
+	}
+	
+	return bimgResize(data, requestedWidth)
+}
+
+func bimgResize(data []byte, requestedWidth uint) ([]byte, ImageFormat, error) {
+	log("Using `h2non/bimg` for resizing")
+
+	var resizedImageData []byte
+	var format ImageFormat
+	var err error
+
+	var bimgfmt bimg.ImageType = bimg.DetermineImageType(data)
+	switch bimgfmt {
+	case bimg.JPEG:
+		format = ImageFormatJPEG
+	case bimg.PNG:
+		format = ImageFormatPNG
+	default:
+		format = ImageFormatUnknown
+	}
+
+	resizedImageData, err = bimg.NewImage(data).Resize(int(requestedWidth), 0)
+	if err != nil {
+		return nil, format, err
+	}
+
+	return resizedImageData, format, err
+}
+
+func nfntResize(data []byte, requestedWidth uint) ([]byte, ImageFormat, error) {
+	log("Using `nfnt/resize` for resizing")
+
+	var resizedImageData []byte
+	var format ImageFormat
+	var err error
+
 	start := time.Now()
-	decodedImage, format, err := tryDecode(data)
+	var decodedImage image.Image
+	decodedImage, format, err = tryDecode(data)
 	if err != nil {
 		return nil, format, err
 	}
 	log("Decoding image data took", time.Now().Sub(start))
 
 	start = time.Now()
+	resizedImage := resize.Resize(requestedWidth, 0, decodedImage, resize.Lanczos3)
 
-	var resizedImage image.Image
-
-	if resizeImplementation == "h2non/bimg" {
-		log("Using `h2non/bimg` for resizing")
-
-		log(requestedWidth)
-		imgByte, err := bimg.NewImage(data).Resize(int(requestedWidth), 0)
-		if err != nil {
-			return nil, format, err
-		}
-
-		// TODO: We need an Image return type for our current API; It would be nice to profile and see if this cast is cheap or not
-		resizedImage, _, err = image.Decode(bytes.NewReader(imgByte))
-		if err != nil {
-			return nil, format, err
-		}
-	} else {
-		log("Using `nfnt/resize` for resizing")
-
-		resizedImage = resize.Resize(requestedWidth, 0, decodedImage, resize.Lanczos3)
+	var buffer = bytes.NewBuffer(make([]byte, len(data)))
+	switch format {
+	case ImageFormatPNG:
+		png.Encode(buffer, resizedImage)
+	case ImageFormatJPEG:
+		jpeg.Encode(buffer, resizedImage, nil)
 	}
-
+	resizedImageData = buffer.Bytes()
 	log("Resizing image data took", time.Now().Sub(start))
 
-	return resizedImage, format, err
+	return resizedImageData, format, err
 }
 
 func tryDecode(data []byte) (image.Image, ImageFormat, error) {
