@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -88,6 +89,8 @@ func (e *entry) Inject(w http.ResponseWriter, r *http.Request, paramsData string
 		return
 	}
 
+	// TODO: maybe we shouldn't even do anything if the image has the desired size alredy?
+
 	// Read image data
 	data, err := readAllData(params.Path)
 	if err != nil {
@@ -96,7 +99,9 @@ func (e *entry) Inject(w http.ResponseWriter, r *http.Request, paramsData string
 	}
 
 	// Resize it
-	resizedImg, format, err := resizeImage(data, params.Width)
+	resizeImplementation := os.Getenv("GITLAB_IMAGE_RESIZER")
+
+	resizedImg, format, err := resizeImage(data, params.Width, resizeImplementation)
 	if err != nil {
 		helper.LogError(r, err)
 		w.WriteHeader(http.StatusOK)
