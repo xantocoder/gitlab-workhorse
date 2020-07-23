@@ -109,20 +109,6 @@ func (e *entry) Inject(w http.ResponseWriter, r *http.Request, paramsData string
 
 	fmt.Println("Image resized, format:", format)
 
-	var contentType string
-  switch format {
-	case ImageFormatJPEG:
-		contentType = "image/jpeg"
-	case ImageFormatPNG:
-		contentType = "image/png"
-	}
-
-	if contentType != "" {
-		// TODO: this is not working...
-		w.Header().Set("Content-Type", contentType)
-		w.WriteHeader(http.StatusOK)
-		w.Write(resizedImg)
-	} else {
-		helper.Fail500(w, r, fmt.Errorf("Unexpected format %v", format))
-	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(resizedImg)
 }

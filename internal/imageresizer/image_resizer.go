@@ -79,7 +79,7 @@ func nfntResize(data []byte, requestedWidth uint) ([]byte, ImageFormat, error) {
 	log("Resizing image data took", time.Now().Sub(start))
 
 	start = time.Now()
-	var buffer = bytes.NewBuffer(make([]byte, len(data)))
+	buffer := new(bytes.Buffer)
 	switch format {
 	case ImageFormatPNG:
 		png.Encode(buffer, resizedImage)
