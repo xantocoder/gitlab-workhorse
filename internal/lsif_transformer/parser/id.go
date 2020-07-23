@@ -6,11 +6,6 @@ import (
 	"strconv"
 )
 
-const (
-	minId = 1
-	maxId = 20 * 1000 * 1000
-)
-
 type Id int32
 
 func (id *Id) UnmarshalJSON(b []byte) error {
@@ -29,10 +24,6 @@ func (id *Id) UnmarshalJSON(b []byte) error {
 	}
 
 	return nil
-}
-
-func (id *Id) unmarshalInt(b []byte) error {
-	return json.Unmarshal(b, (*int32)(id))
 }
 
 func (id *Id) unmarshalString(b []byte) error {
