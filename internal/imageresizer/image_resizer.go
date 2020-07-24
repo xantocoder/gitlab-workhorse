@@ -24,6 +24,10 @@ func log(args ...interface{}) {
 	fmt.Println(args...)
 }
 
+func logTiming(msg string, start time.Time) {
+	log(msg, time.Now().Sub(start).Microseconds(), "mus")
+}
+
 func resizeImage(data []byte, requestedWidth uint, resizeImplementation string) ([]byte, ImageFormat, error) {
 	log("Resizing image data (", len(data), "bytes)")
 
@@ -52,11 +56,15 @@ func bimgResize(data []byte, requestedWidth uint) ([]byte, ImageFormat, error) {
 		format = ImageFormatUnknown
 	}
 
-	resizedImageData, err = bimg.NewImage(data).Resize(int(requestedWidth), 0)
+	options := bimg.Options{
+		Width: int(requestedWidth),
+		Interpolator: bimg.Bicubic,
+	}
+	resizedImageData, err = bimg.Resize(data, options)
 	if err != nil {
 		return nil, format, err
 	}
-	log("Resizing image data took", time.Now().Sub(start))
+	logTiming("Resizing image data took", start)
 
 	return resizedImageData, format, err
 }
@@ -74,11 +82,11 @@ func nfntResize(data []byte, requestedWidth uint) ([]byte, ImageFormat, error) {
 	if err != nil {
 		return nil, format, err
 	}
-	log("Decoding image data took", time.Now().Sub(start))
+	logTiming("Decoding image data took", start)
 
 	start = time.Now()
 	resizedImage := resize.Resize(requestedWidth, 0, decodedImage, resize.Lanczos3)
-	log("Resizing image data took", time.Now().Sub(start))
+	logTiming("Resizing image data took", start)
 
 	start = time.Now()
 	buffer := new(bytes.Buffer)
@@ -88,7 +96,7 @@ func nfntResize(data []byte, requestedWidth uint) ([]byte, ImageFormat, error) {
 	case ImageFormatJPEG:
 		jpeg.Encode(buffer, resizedImage, nil)
 	}
-	log("Re-encoding image data took", time.Now().Sub(start))
+	logTiming("Re-encoding image data took", start)
 	resizedImageData = buffer.Bytes()
 
 	return resizedImageData, format, err
