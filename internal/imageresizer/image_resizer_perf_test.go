@@ -14,15 +14,23 @@ const (
 	requestedWidthLarge = 200
 )
 
-func BenchmarkScaleSmallImage(b *testing.B) {
-	benchmarkScaleImage("../../testdata/gitlab_small.png", b)
+func BenchmarkScaleSmallImageBimg(b *testing.B) {
+	benchmarkScaleImage("../../testdata/gitlab_small.png", "default", b)
 }
 
-func BenchmarkScaleLargeImage(b *testing.B) {
-	benchmarkScaleImage("../../testdata/gitlab_large.jpg", b)
+func BenchmarkScaleLargeImageBimg(b *testing.B) {
+	benchmarkScaleImage("../../testdata/gitlab_large.jpg", "default", b)
 }
 
-func benchmarkScaleImage(filePath string, b *testing.B) {
+func BenchmarkScaleSmallImageNfnt(b *testing.B) {
+	benchmarkScaleImage("../../testdata/gitlab_small.png", "nfnt/resize", b)
+}
+
+func BenchmarkScaleLargeImageNfnt(b *testing.B) {
+	benchmarkScaleImage("../../testdata/gitlab_large.jpg", "nfnt/resize", b)
+}
+
+func benchmarkScaleImage(filePath string, scaler string, b *testing.B) {
 	m := measureMemory(func() {
 		file, err := os.Open(filePath)
 		require.NoError(b, err)
@@ -30,10 +38,11 @@ func benchmarkScaleImage(filePath string, b *testing.B) {
 		imageData, err := ioutil.ReadAll(file)
 		require.NoError(b, err)
 
-		_, _, err = resizeImage(imageData, requestedWidthSmall, "")
+		_, _, err = resizeImage(imageData, requestedWidthSmall, scaler)
 		require.NoError(b, err)
 	})
 
+	b.Log("scaler:", scaler)
 	b.ReportMetric(m, "MiB/op")
 }
 
