@@ -41,6 +41,7 @@ func bimgResize(data []byte, requestedWidth uint) ([]byte, ImageFormat, error) {
 	var format ImageFormat
 	var err error
 
+	start := time.Now()
 	var bimgfmt bimg.ImageType = bimg.DetermineImageType(data)
 	switch bimgfmt {
 	case bimg.JPEG:
@@ -55,6 +56,7 @@ func bimgResize(data []byte, requestedWidth uint) ([]byte, ImageFormat, error) {
 	if err != nil {
 		return nil, format, err
 	}
+	log("Resizing image data took", time.Now().Sub(start))
 
 	return resizedImageData, format, err
 }
