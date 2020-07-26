@@ -14,6 +14,7 @@ In this file we start the web server and hand off to the upstream type.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net"
@@ -73,6 +74,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "\n  %s [OPTIONS]\n\nOptions:\n", os.Args[0])
 		flag.PrintDefaults()
 	}
+	kgb := &kgbapp.App{}
+	kgbapp.BindFlags(flag.CommandLine, kgb, "kgb-")
 	flag.Parse()
 
 	if *printVersion {
@@ -181,6 +184,13 @@ func main() {
 	}
 
 	up := wrapRaven(upstream.NewUpstream(cfg, accessLogger))
+
+	go func() {
+		err := kgb.Run(context.TODO())
+		if err != nil {
+			log.WithError(err).Fatal("Failed to start kgb")
+		}
+	}()
 
 	err = http.Serve(listener, up)
 	if err != nil {
