@@ -37,7 +37,7 @@ func (e *entry) Inject(w http.ResponseWriter, r *http.Request, paramsData string
 	// TODO: maybe we shouldn't even do anything if the image has the desired size alredy?
 
 	// Read image data
-	data, err := readAllData(params.Path)
+	data, err := ReadAllData(params.Path)
 	if err != nil {
 		helper.Fail500(w, r, fmt.Errorf("ImageResizer: cannot read data: %v", err))
 		return
@@ -46,7 +46,7 @@ func (e *entry) Inject(w http.ResponseWriter, r *http.Request, paramsData string
 	// Resize it
 	resizeImplementation := os.Getenv("GITLAB_IMAGE_RESIZER")
 
-	resizedImg, format, err := resizeImage(data, params.Width, resizeImplementation)
+	resizedImg, format, err := ResizeImage(data, params.Width, resizeImplementation)
 	if err != nil {
 		helper.LogError(r, err)
 		w.WriteHeader(http.StatusOK)

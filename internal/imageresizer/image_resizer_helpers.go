@@ -38,7 +38,7 @@ func isURL(path string) bool {
 	return strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://")
 }
 
-func readAllData(path string) ([]byte, error) {
+func ReadAllData(path string) ([]byte, error) {
 	// TODO: super unsafe: size, and path no validation of the source
 	if !isURL(path) {
 		return ioutil.ReadFile(path)

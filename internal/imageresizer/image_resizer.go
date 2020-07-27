@@ -1,6 +1,7 @@
 package imageresizer
 
 import (
+	"os"
 	"bytes"
 	"fmt"
 	"image"
@@ -20,15 +21,16 @@ const (
 	ImageFormatJPEG
 )
 
+// don't log to stdout because that's where the command will write binary image data
 func logMsg(args ...interface{}) {
-	fmt.Println(args...)
+	fmt.Fprintln(os.Stderr, args...)
 }
 
 func logTiming(msg string, start time.Time) {
 	logMsg(msg, time.Now().Sub(start).Microseconds(), "mus")
 }
 
-func resizeImage(data []byte, requestedWidth uint, resizeImplementation string) ([]byte, ImageFormat, error) {
+func ResizeImage(data []byte, requestedWidth uint, resizeImplementation string) ([]byte, ImageFormat, error) {
 	logMsg("Resizing image data (", len(data), "bytes)")
 
 	if resizeImplementation == "nfnt/resize" {

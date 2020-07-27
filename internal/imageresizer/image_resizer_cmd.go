@@ -43,26 +43,17 @@ func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 		"WH_RESIZE_IMAGE_WIDTH=" + strconv.Itoa(int(params.Width)),
 	)
 	resizeCmd.Stderr = log.ContextLogger(req.Context()).Writer()
-	// resizeCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	// _, err := resizeCmd.StdoutPipe()
-	// if err != nil {
-	// 	helper.Fail500(w, req, fmt.Errorf("create resize-image stdout pipe: %v", err))
-	// 	return
-	// }
-
-	output, err := resizeCmd.Output()
+	resizedImg, err := resizeCmd.Output()
 	if err != nil {
 		helper.Fail500(w, req, fmt.Errorf("start %v: %v", resizeCmd.Args, err))
 		return
 	}
 
-	fmt.Println("Image resized; result:", string(output))
-
+	fmt.Println("Image resized; bytes received:", len(resizedImg))
+	//TODO: do we need this?
 	defer helper.CleanUpProcessGroup(resizeCmd)
-	// Read resized image from temp dir
 
 	// Serve resized image
 	w.WriteHeader(http.StatusOK)
-
-	// Clean up temp dir
+	w.Write(resizedImg)
 }
