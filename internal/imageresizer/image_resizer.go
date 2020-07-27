@@ -20,16 +20,16 @@ const (
 	ImageFormatJPEG
 )
 
-func log(args ...interface{}) {
+func logMsg(args ...interface{}) {
 	fmt.Println(args...)
 }
 
 func logTiming(msg string, start time.Time) {
-	log(msg, time.Now().Sub(start).Microseconds(), "mus")
+	logMsg(msg, time.Now().Sub(start).Microseconds(), "mus")
 }
 
 func resizeImage(data []byte, requestedWidth uint, resizeImplementation string) ([]byte, ImageFormat, error) {
-	log("Resizing image data (", len(data), "bytes)")
+	logMsg("Resizing image data (", len(data), "bytes)")
 
 	if resizeImplementation == "nfnt/resize" {
 		return nfntResize(data, requestedWidth)
@@ -39,7 +39,7 @@ func resizeImage(data []byte, requestedWidth uint, resizeImplementation string) 
 }
 
 func bimgResize(data []byte, requestedWidth uint) ([]byte, ImageFormat, error) {
-	log("Using `h2non/bimg` for resizing")
+	logMsg("Using `h2non/bimg` for resizing")
 
 	var resizedImageData []byte
 	var format ImageFormat
@@ -70,7 +70,7 @@ func bimgResize(data []byte, requestedWidth uint) ([]byte, ImageFormat, error) {
 }
 
 func nfntResize(data []byte, requestedWidth uint) ([]byte, ImageFormat, error) {
-	log("Using `nfnt/resize` for resizing")
+	logMsg("Using `nfnt/resize` for resizing")
 
 	var resizedImageData []byte
 	var format ImageFormat

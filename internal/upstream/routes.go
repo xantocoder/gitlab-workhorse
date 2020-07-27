@@ -154,7 +154,7 @@ func buildProxy(backend *url.URL, version string, rt http.RoundTripper) http.Han
 		git.SendSnapshot,
 		artifacts.SendEntry,
 		sendurl.SendURL,
-		imageresizer.ImageResizer,
+		imageresizer.ImageResizerCmd,
 	)
 }
 
