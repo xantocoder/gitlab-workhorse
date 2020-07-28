@@ -17,14 +17,10 @@ func main() {
 		log.Fatalln("Failed reading image width:", err)
 	}
 
-	log.Fatalln("Downloading image data ...")
 	imageData, err := imageresizer.ReadAllData(imageURL)
 	if err != nil {
-		log.Fatalln("Failed loading image data:", err)
+		log.Fatalln("Failed downloading image data:", err)
 	}
-
-	log.Fatalln("imageURL:", imageURL)
-	log.Fatalln("width:", requestedWidth)
 
 	resizedImageData, _, err := imageresizer.ResizeImage(imageData, uint(requestedWidth), "")
 
