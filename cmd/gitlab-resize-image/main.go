@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"strconv"
 	"os"
 	"bytes"
+	"log"
 
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/imageresizer"
 )
@@ -14,22 +14,22 @@ func main() {
 	requestedWidth, err := strconv.Atoi(os.Getenv("WH_RESIZE_IMAGE_WIDTH"))
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed reading image width:", err)
+		log.Fatalln("Failed reading image width:", err)
 	}
 
-	fmt.Fprintln(os.Stderr, "Downloading image data ...")
+	log.Fatalln("Downloading image data ...")
 	imageData, err := imageresizer.ReadAllData(imageURL)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed loading image data:", err)
+		log.Fatalln("Failed loading image data:", err)
 	}
 
-	fmt.Fprintln(os.Stderr, "imageURL:", imageURL)
-	fmt.Fprintln(os.Stderr, "width:", requestedWidth)
+	log.Fatalln("imageURL:", imageURL)
+	log.Fatalln("width:", requestedWidth)
 
 	resizedImageData, _, err := imageresizer.ResizeImage(imageData, uint(requestedWidth), "")
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed resizing image:", err)
+		log.Fatalln("Failed resizing image:", err)
 	}
 
 	//TODO: this can probably be made more efficient by write multiple chunks
