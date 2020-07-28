@@ -3,7 +3,6 @@ package main
 import (
 	"strconv"
 	"os"
-	"bytes"
 	"log"
 
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/imageresizer"
@@ -28,9 +27,12 @@ func main() {
 		log.Fatalln("Failed resizing image:", err)
 	}
 
-	//TODO: this can probably be made more efficient by write multiple chunks
-	// instead of buffering upfront, then writing it all at once
-	var buffer bytes.Buffer
-	buffer.Write(resizedImageData)
-	buffer.WriteTo(os.Stdout)	
+	bytesWritten, err := os.Stdout.Write(resizedImageData)
+	if err != nil {
+		log.Fatalln("Failed writing image data to stdout: ", err)
+	}
+
+	if bytesWritten != len(resizedImageData) {
+		log.Fatalf("Failed writing all image data (written bytes: %d, image bytes: %d)", bytesWritten, len(resizedImageData))
+	}
 }
