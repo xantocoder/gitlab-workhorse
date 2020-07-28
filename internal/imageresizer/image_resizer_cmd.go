@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"syscall"
+	"io"
 
 	"gitlab.com/gitlab-org/labkit/log"
 
@@ -42,18 +44,34 @@ func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 		"WH_RESIZE_IMAGE_URL=" + params.Path,
 		"WH_RESIZE_IMAGE_WIDTH=" + strconv.Itoa(int(params.Width)),
 	)
-	resizeCmd.Stderr = log.ContextLogger(req.Context()).Writer()
-	resizedImg, err := resizeCmd.Output()
+	logger := log.ContextLogger(req.Context())
+	resizeCmd.Stderr = logger.Writer()
+	resizeCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	stdout, err := resizeCmd.StdoutPipe()
 	if err != nil {
-		helper.Fail500(w, req, fmt.Errorf("start %v: %v", resizeCmd.Args, err))
+		helper.Fail500(w, req, fmt.Errorf("create gitlab-resize-image stdout pipe: %v", err))
 		return
 	}
 
-	fmt.Println("Image resized; bytes received:", len(resizedImg))
-	//TODO: do we need this?
+	if err := resizeCmd.Start(); err != nil {
+		helper.Fail500(w, req, fmt.Errorf("start %v: %v", resizeCmd.Args, err))
+		return
+	}
 	defer helper.CleanUpProcessGroup(resizeCmd)
 
-	// Serve resized image
-	w.WriteHeader(http.StatusOK)
-	w.Write(resizedImg)
+	bytesWritten, err := io.Copy(w, stdout)
+
+	if err != nil {
+		if (bytesWritten == 0) {
+			// we can only write out a full 500 if we haven't already  tried to serve the image
+			helper.Fail500(w, req, err)
+			return
+		} else {
+			// Is there a better way to recover from this, since we will abort mid-stream?
+			logger.Errorf("Failed serving image data to client after %d bytes: %v", bytesWritten, err)
+			return
+		}
+	}
+
+	logger.Debugf("Served resized image (bytes written: %d)", bytesWritten)
 }
