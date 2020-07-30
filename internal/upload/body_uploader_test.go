@@ -1,4 +1,4 @@
-package filestore_test
+package upload
 
 import (
 	"fmt"
@@ -11,10 +11,12 @@ import (
 	"strings"
 	"testing"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/require"
 
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/api"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/filestore"
+	"gitlab.com/gitlab-org/gitlab-workhorse/internal/testhelper"
 )
 
 const (
@@ -23,6 +25,8 @@ const (
 )
 
 func TestBodyUploader(t *testing.T) {
+	testhelper.ConfigureSecret()
+
 	body := strings.NewReader(fileContent)
 
 	resp := testUpload(&rails{}, nil, echoProxy(t, fileLen), body)
@@ -78,7 +82,7 @@ func TestBodyUploaderErrors(t *testing.T) {
 	}
 }
 
-func testNoProxyInvocation(t *testing.T, expectedStatus int, auth filestore.PreAuthorizer, preparer filestore.UploadPreparer) {
+func testNoProxyInvocation(t *testing.T, expectedStatus int, auth PreAuthorizer, preparer Preparer) {
 	proxy := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Fail(t, "request proxied upstream")
 	})
@@ -87,11 +91,11 @@ func testNoProxyInvocation(t *testing.T, expectedStatus int, auth filestore.PreA
 	require.Equal(t, expectedStatus, resp.StatusCode)
 }
 
-func testUpload(auth filestore.PreAuthorizer, preparer filestore.UploadPreparer, proxy http.Handler, body io.Reader) *http.Response {
+func testUpload(auth PreAuthorizer, preparer Preparer, proxy http.Handler, body io.Reader) *http.Response {
 	req := httptest.NewRequest("POST", "http://example.com/upload", body)
 	w := httptest.NewRecorder()
 
-	filestore.BodyUploader(auth, proxy, preparer).ServeHTTP(w, req)
+	BodyUploader(auth, proxy, preparer).ServeHTTP(w, req)
 
 	return w.Result()
 }
@@ -113,6 +117,14 @@ func echoProxy(t *testing.T, expectedBodyLength int) http.Handler {
 		require.Contains(r.PostForm, "file.path")
 		require.Contains(r.PostForm, "file.size")
 		require.Equal(strconv.Itoa(expectedBodyLength), r.PostFormValue("file.size"))
+
+		token, err := jwt.ParseWithClaims(r.Header.Get(RewrittenFieldsHeader), &MultipartClaims{}, testhelper.ParseJWT)
+		require.NoError(err, "Wrong JWT header")
+
+		rewrittenFields := token.Claims.(*MultipartClaims).RewrittenFields
+		if len(rewrittenFields) != 1 || len(rewrittenFields["file"]) == 0 {
+			t.Fatalf("Unexpected rewritten_fields value: %v", rewrittenFields)
+		}
 
 		path := r.PostFormValue("file.path")
 		uploaded, err := os.Open(path)
@@ -140,11 +152,11 @@ func (r *rails) PreAuthorizeHandler(next api.HandleFunc, _ string) http.Handler 
 }
 
 type alwaysLocalPreparer struct {
-	verifier     filestore.UploadVerifier
+	verifier     Verifier
 	prepareError error
 }
 
-func (a *alwaysLocalPreparer) Prepare(_ *api.Response) (*filestore.SaveFileOpts, filestore.UploadVerifier, error) {
+func (a *alwaysLocalPreparer) Prepare(_ *api.Response) (*filestore.SaveFileOpts, Verifier, error) {
 	return filestore.GetOpts(&api.Response{TempPath: os.TempDir()}), a.verifier, a.prepareError
 }
 
