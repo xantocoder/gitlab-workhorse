@@ -7,7 +7,6 @@ import (
 	"log"
 	"fmt"
 	"bytes"
-	// "io"
 
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/imageresizer"
 )
@@ -48,19 +47,18 @@ func main() {
 }
 
 func resizeImageGMagick(imageData []byte, width int) ([]byte, error) {
-	// fmt.Sprintf("-resize %dx", width)
-	cmd := exec.Command("gm", "convert", "-resize", "100x", "-", "-")
-	var inBuffer, outBuffer bytes.Buffer
+	cmd := exec.Command("gm", "convert", "-resize", fmt.Sprintf("%dx", width), "-", "-")
+	var inBuffer bytes.Buffer
 	cmd.Stdin = &inBuffer
-	cmd.Stdout = &outBuffer
 	cmd.Stderr = os.Stderr
 
 	inBuffer.Write(imageData)
 
-	if err := cmd.Start(); err != nil {
+	outData, err := cmd.Output()
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return nil, err
 	}
 
-	return outBuffer.Bytes(), nil
+	return outData, nil
 }
