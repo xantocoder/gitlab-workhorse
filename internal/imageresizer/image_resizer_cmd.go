@@ -20,13 +20,12 @@ type resizer struct{ senddata.Prefix }
 var ImageResizerCmd = &resizer{"image-resizer:"}
 
 type resizeParams struct {
-	Path  string
+	Path, Resizer string
 	Width uint
 }
 
 func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData string) {
 	var params resizeParams
-	fmt.Println("Image params:", paramsData)
 
 	if err := r.Unpack(&params, paramsData); err != nil {
 		helper.Fail500(w, req, fmt.Errorf("ImageResizer: unpack paramsData: %v", err))
@@ -38,12 +37,19 @@ func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 		return
 	}
 
+	var resizeStrategy string
+	if params.Resizer != "" {
+		resizeStrategy = params.Resizer
+	} else {
+		resizeStrategy = "bimg"
+	}
+
 	// Set up environment, run `cmd/resize-image`
 	resizeCmd := exec.Command("gitlab-resize-image")
 	resizeCmd.Env = append(os.Environ(),
 		"WH_RESIZE_IMAGE_URL=" + params.Path,
 		"WH_RESIZE_IMAGE_WIDTH=" + strconv.Itoa(int(params.Width)),
-		"WH_RESIZE_STRATEGY=bimg", // supported: [bimg, gmagick]
+		"WH_RESIZE_STRATEGY=" + resizeStrategy,
 	)
 	logger := log.ContextLogger(req.Context())
 	resizeCmd.Stderr = logger.Writer()
@@ -74,5 +80,5 @@ func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 		}
 	}
 
-	logger.Debugf("Served resized image (bytes written: %d)", bytesWritten)
+	logger.Infof("Served resized image via %s (bytes written: %d)", resizeStrategy, bytesWritten)
 }
