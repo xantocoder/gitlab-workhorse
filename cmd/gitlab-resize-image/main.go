@@ -12,7 +12,11 @@ import (
 )
 
 func main() {
-	resizeStrategy := "gmagick"
+	resizeStrategy := os.Getenv("WH_RESIZE_STRATEGY")
+	if resizeStrategy == "" {
+		log.Fatalln("Must provide WH_RESIZE_STRATEGY=[bimg|gmagick]")
+	}
+
 	imageURL := os.Getenv("WH_RESIZE_IMAGE_URL")
 	requestedWidth, err := strconv.Atoi(os.Getenv("WH_RESIZE_IMAGE_WIDTH"))
 

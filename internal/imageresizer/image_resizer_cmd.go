@@ -43,6 +43,7 @@ func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 	resizeCmd.Env = append(os.Environ(),
 		"WH_RESIZE_IMAGE_URL=" + params.Path,
 		"WH_RESIZE_IMAGE_WIDTH=" + strconv.Itoa(int(params.Width)),
+		"WH_RESIZE_STRATEGY=bimg", // supported: [bimg, gmagick]
 	)
 	logger := log.ContextLogger(req.Context())
 	resizeCmd.Stderr = logger.Writer()
