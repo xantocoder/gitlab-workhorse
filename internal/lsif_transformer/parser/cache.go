@@ -19,6 +19,11 @@ type dynamicCache struct {
 	file *os.File
 }
 
+type Offset struct {
+	At  int32
+	Len int32
+}
+
 func newCache(tempDir, filename string, data interface{}) (*cache, error) {
 	cacheFile, err := createCacheFile(tempDir, filename)
 	if err != nil {

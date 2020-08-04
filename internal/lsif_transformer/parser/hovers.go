@@ -6,11 +6,6 @@ import (
 	"os"
 )
 
-type Offset struct {
-	At  int32
-	Len int32
-}
-
 type Hovers struct {
 	File          *os.File
 	Offsets       *cache

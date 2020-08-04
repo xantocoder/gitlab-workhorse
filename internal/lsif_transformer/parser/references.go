@@ -5,7 +5,8 @@ import (
 )
 
 type References struct {
-	Items             map[Id][]Item
+	File              *dynamicCache
+	Offsets           *cache
 	ProcessReferences bool
 }
 
@@ -13,17 +14,41 @@ type SerializedReference struct {
 	Path string `json:"path"`
 }
 
-func NewReferences(config Config) *References {
-	return &References{
-		Items:             make(map[Id][]Item),
-		ProcessReferences: config.ProcessReferences,
+func NewReferences(config Config) (*References, error) {
+	tempPath := config.TempPath
+
+	file, err := newDynamicCache(tempPath, "references")
+	if err != nil {
+		return nil, err
 	}
+
+	offsets, err := newCache(tempPath, "references-offsets", Offset{})
+	if err != nil {
+		return nil, err
+	}
+
+	return &References{
+		File:              file,
+		Offsets:           offsets,
+		ProcessReferences: config.ProcessReferences,
+	}, nil
 }
 
-func (r *References) Store(refId Id, references []Item) {
-	if r.ProcessReferences {
-		r.Items[refId] = references
+func (r *References) Store(refId Id, references []Item) error {
+	size := len(references)
+
+	if !r.ProcessReferences || size == 0 {
+		return nil
 	}
+
+	err := r.File.SetEntry(refId, references)
+	if err != nil {
+		return err
+	}
+
+	r.Offsets.SetEntry(refId, Offset{Len: int32(size)})
+
+	return nil
 }
 
 func (r *References) For(docs map[Id]string, refId Id) []SerializedReference {
@@ -31,8 +56,13 @@ func (r *References) For(docs map[Id]string, refId Id) []SerializedReference {
 		return nil
 	}
 
-	references, ok := r.Items[refId]
-	if !ok {
+	var offset Offset
+	if err := r.Offsets.Entry(refId, &offset); err != nil || offset.Len == 0 {
+		return nil
+	}
+
+	references := make([]Item, offset.Len)
+	if err := r.File.Entry(refId, &references); err != nil {
 		return nil
 	}
 
@@ -47,4 +77,11 @@ func (r *References) For(docs map[Id]string, refId Id) []SerializedReference {
 	}
 
 	return serializedReferences
+}
+
+func (r *References) Close() error {
+	return combineErrors(
+		r.File.Close(),
+		r.Offsets.Close(),
+	)
 }
