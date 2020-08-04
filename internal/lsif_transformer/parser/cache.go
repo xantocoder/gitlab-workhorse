@@ -15,7 +15,29 @@ type cache struct {
 	chunkSize int64
 }
 
+type dynamicCache struct {
+	file *os.File
+}
+
 func newCache(tempDir, filename string, data interface{}) (*cache, error) {
+	cacheFile, err := createCacheFile(tempDir, filename)
+	if err != nil {
+		return nil, err
+	}
+
+	return &cache{file: cacheFile, chunkSize: int64(binary.Size(data))}, nil
+}
+
+func newDynamicCache(tempDir, filename string) (*dynamicCache, error) {
+	cacheFile, err := createCacheFile(tempDir, filename)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dynamicCache{file: cacheFile}, nil
+}
+
+func createCacheFile(tempDir, filename string) (*os.File, error) {
 	f, err := ioutil.TempFile(tempDir, filename)
 	if err != nil {
 		return nil, err
@@ -25,7 +47,7 @@ func newCache(tempDir, filename string, data interface{}) (*cache, error) {
 		return nil, err
 	}
 
-	return &cache{file: f, chunkSize: int64(binary.Size(data))}, nil
+	return f, nil
 }
 
 func (c *cache) SetEntry(id Id, data interface{}) error {
@@ -49,8 +71,36 @@ func (c *cache) Close() error {
 }
 
 func (c *cache) setOffset(id Id) error {
-	offset := int64(id) * c.chunkSize
-	_, err := c.file.Seek(offset, io.SeekStart)
+	return setOffset(c.file, id, c.chunkSize)
+}
+
+func (dc *dynamicCache) SetEntry(id Id, data interface{}) error {
+	if err := dc.setOffset(id, data); err != nil {
+		return err
+	}
+
+	return binary.Write(dc.file, binary.LittleEndian, data)
+}
+
+func (dc *dynamicCache) Entry(id Id, data interface{}) error {
+	if err := dc.setOffset(id, data); err != nil {
+		return err
+	}
+
+	return binary.Read(dc.file, binary.LittleEndian, data)
+}
+
+func (dc *dynamicCache) Close() error {
+	return dc.file.Close()
+}
+
+func (dc *dynamicCache) setOffset(id Id, data interface{}) error {
+	return setOffset(dc.file, id, int64(binary.Size(data)))
+}
+
+func setOffset(file *os.File, id Id, chunkSize int64) error {
+	offset := int64(id) * chunkSize
+	_, err := file.Seek(offset, io.SeekStart)
 
 	return err
 }
