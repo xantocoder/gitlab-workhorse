@@ -12,25 +12,25 @@ import (
 )
 
 func main() {
-	resizeStrategy := os.Getenv("WH_RESIZE_STRATEGY")
-	if resizeStrategy == "" {
-		log.Fatalln("Must provide WH_RESIZE_STRATEGY=[bimg|gmagick]")
+	scaler := os.Getenv("WH_RESIZE_IMAGE_SCALER")
+	if scaler == "" {
+		log.Fatalln("Must provide WH_RESIZE_IMAGE_SCALER=[bimg|gmagick]")
 	}
 
-	imageURL := os.Getenv("WH_RESIZE_IMAGE_URL")
+	location := os.Getenv("WH_RESIZE_IMAGE_LOCATION")
 	requestedWidth, err := strconv.Atoi(os.Getenv("WH_RESIZE_IMAGE_WIDTH"))
 
 	if err != nil {
 		log.Fatalln("Failed reading image width:", err)
 	}
 
-	imageData, err := imageresizer.ReadAllData(imageURL)
+	imageData, err := imageresizer.ReadAllData(location)
 	if err != nil {
 		log.Fatalln("Failed downloading image data:", err)
 	}
 
 	var resizedImageData []byte
-	if resizeStrategy == "bimg"{
+	if scaler == "bimg"{
 		resizedImageData, _, err = imageresizer.ResizeImage(imageData, uint(requestedWidth), "")
 	} else {
 		resizedImageData, err = resizeImageGMagick(imageData, requestedWidth)

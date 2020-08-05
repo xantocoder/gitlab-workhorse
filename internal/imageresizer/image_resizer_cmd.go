@@ -17,10 +17,10 @@ import (
 
 type resizer struct{ senddata.Prefix }
 
-var ImageResizerCmd = &resizer{"image-resizer:"}
+var ImageResizerCmd = &resizer{"send-scaled-img:"}
 
 type resizeParams struct {
-	Path, Resizer string
+	Location, Scaler string
 	Width uint
 }
 
@@ -32,24 +32,24 @@ func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 		return
 	}
 
-	if params.Path == "" {
-		helper.Fail500(w, req, fmt.Errorf("ImageResizer: Path is empty"))
+	if params.Location == "" {
+		helper.Fail500(w, req, fmt.Errorf("ImageResizer: Location is empty"))
 		return
 	}
 
-	var resizeStrategy string
-	if params.Resizer != "" {
-		resizeStrategy = params.Resizer
+	var scaler string
+	if params.Scaler != "" {
+		scaler = params.Scaler
 	} else {
-		resizeStrategy = "bimg"
+		scaler = "bimg"
 	}
 
 	// Set up environment, run `cmd/resize-image`
 	resizeCmd := exec.Command("gitlab-resize-image")
 	resizeCmd.Env = append(os.Environ(),
-		"WH_RESIZE_IMAGE_URL=" + params.Path,
+		"WH_RESIZE_IMAGE_LOCATION=" + params.Location,
 		"WH_RESIZE_IMAGE_WIDTH=" + strconv.Itoa(int(params.Width)),
-		"WH_RESIZE_STRATEGY=" + resizeStrategy,
+		"WH_RESIZE_IMAGE_SCALER=" + scaler,
 	)
 	logger := log.ContextLogger(req.Context())
 	resizeCmd.Stderr = logger.Writer()
@@ -80,5 +80,5 @@ func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 		}
 	}
 
-	logger.Infof("Served resized image via %s (bytes written: %d)", resizeStrategy, bytesWritten)
+	logger.Infof("Served send-scaled-img request (scaler: %s, bytes written: %d)", scaler, bytesWritten)
 }
