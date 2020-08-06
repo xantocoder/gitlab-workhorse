@@ -2,6 +2,7 @@ package imageresizer
 
 import (
 	"net/http"
+	"os"
 	"time"
 	"net"
 	"strings"
@@ -38,10 +39,10 @@ func isURL(path string) bool {
 	return strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://")
 }
 
-func ReadAllData(path string) ([]byte, error) {
+func ReadAllData(path string) (io.Reader, error) {
 	// TODO: super unsafe: size, and path no validation of the source
 	if !isURL(path) {
-		return ioutil.ReadFile(path)
+		return os.Open(path)
 	}
 
 	res, err := httpClient.Get(path)
@@ -52,7 +53,7 @@ func ReadAllData(path string) ([]byte, error) {
 	defer res.Body.Close()
 
 	if res.StatusCode == http.StatusOK {
-		return ioutil.ReadAll(res.Body)
+		return res.Body, nil
 	}
 
 	return nil, fmt.Errorf("cannot read data from %q: %d %s",

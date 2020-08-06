@@ -1,12 +1,12 @@
 package main
 
 import (
+	"io"
 	"strconv"
 	"os"
 	"os/exec"
 	"log"
 	"fmt"
-	"bytes"
 
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/imageresizer"
 )
@@ -29,14 +29,11 @@ func main() {
 	}
 }
 
-func resizeImageGMagick(imageData []byte, width int) error {
+func resizeImageGMagick(imageData io.Reader, width int) error {
 	cmd := exec.Command("gm", "convert", "-resize", fmt.Sprintf("%dx", width), "-", "-")
-	var inBuffer bytes.Buffer
-	cmd.Stdin = &inBuffer
+	cmd.Stdin = imageData
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
-
-	inBuffer.Write(imageData)
 
 	err := cmd.Start()
 	if err != nil {
