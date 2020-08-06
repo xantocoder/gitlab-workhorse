@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"log"
 	"fmt"
+	"syscall"
 
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/imageresizer"
 )
@@ -34,6 +35,7 @@ func resizeImageGMagick(imageData io.Reader, width int) error {
 	cmd.Stdin = imageData
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	err := cmd.Start()
 	if err != nil {
