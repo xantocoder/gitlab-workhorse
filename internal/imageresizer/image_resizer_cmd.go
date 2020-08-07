@@ -60,16 +60,16 @@ func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 
 	bytesWritten, err := io.Copy(w, stdout)
 
+	if bytesWritten == 0 {
+		// we can only write out a full 500 if we haven't already  tried to serve the image
+		helper.Fail500(w, req, err)
+		return
+	}
+
 	if err != nil {
-		if (bytesWritten == 0) {
-			// we can only write out a full 500 if we haven't already  tried to serve the image
-			helper.Fail500(w, req, err)
-			return
-		} else {
-			// Is there a better way to recover from this, since we will abort mid-stream?
-			logger.Errorf("Failed serving image data to client after %d bytes: %v", bytesWritten, err)
-			return
-		}
+		// Is there a better way to recover from this, since we will abort mid-stream?
+		logger.Errorf("Failed serving image data to client after %d bytes: %v", bytesWritten, err)
+		return
 	}
 
 	logger.Infof("Served send-scaled-img request (bytes written: %d)", bytesWritten)
