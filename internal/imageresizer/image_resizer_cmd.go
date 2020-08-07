@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"sync/atomic"
 	"syscall"
 
 	"gitlab.com/gitlab-org/labkit/log"
@@ -24,7 +25,15 @@ type resizeParams struct {
 	Width            uint
 }
 
+const maxImageScalerProcs = 30
+
+var numScalerProcs uint32 = 0
+
 func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData string) {
+	if atomic.AddUint32(&numScalerProcs, 1) > maxImageScalerProcs {
+		helper.Fail500(w, req, fmt.Errorf("Too many image resize requests (max %d)", maxImageScalerProcs))
+		return
+	}
 	var params resizeParams
 
 	if err := r.Unpack(&params, paramsData); err != nil {
