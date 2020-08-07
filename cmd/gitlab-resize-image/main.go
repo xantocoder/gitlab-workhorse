@@ -1,12 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"io"
-	"strconv"
+	"log"
 	"os"
 	"os/exec"
-	"log"
-	"fmt"
+	"strconv"
 
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/imageresizer"
 )

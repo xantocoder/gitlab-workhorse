@@ -1,18 +1,18 @@
 package imageresizer
 
 import (
+	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
-	"fmt"
-	"net/http"
 	"strconv"
 	"syscall"
-	"io"
 
 	"gitlab.com/gitlab-org/labkit/log"
 
-	"gitlab.com/gitlab-org/gitlab-workhorse/internal/senddata"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/helper"
+	"gitlab.com/gitlab-org/gitlab-workhorse/internal/senddata"
 )
 
 type resizer struct{ senddata.Prefix }
@@ -21,7 +21,7 @@ var ImageResizerCmd = &resizer{"send-scaled-img:"}
 
 type resizeParams struct {
 	Location, Scaler string
-	Width uint
+	Width            uint
 }
 
 func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData string) {
@@ -40,8 +40,8 @@ func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 	// Set up environment, run `cmd/resize-image`
 	resizeCmd := exec.Command("gitlab-resize-image")
 	resizeCmd.Env = append(os.Environ(),
-		"WH_RESIZE_IMAGE_LOCATION=" + params.Location,
-		"WH_RESIZE_IMAGE_WIDTH=" + strconv.Itoa(int(params.Width)),
+		"WH_RESIZE_IMAGE_LOCATION="+params.Location,
+		"WH_RESIZE_IMAGE_WIDTH="+strconv.Itoa(int(params.Width)),
 	)
 	logger := log.ContextLogger(req.Context())
 	resizeCmd.Stderr = logger.Writer()

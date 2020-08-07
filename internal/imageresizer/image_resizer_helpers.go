@@ -1,13 +1,13 @@
 package imageresizer
 
 import (
+	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"os"
-	"time"
-	"net"
 	"strings"
-	"io"
-	"fmt"
+	"time"
 
 	"gitlab.com/gitlab-org/labkit/correlation"
 	"gitlab.com/gitlab-org/labkit/tracing"
