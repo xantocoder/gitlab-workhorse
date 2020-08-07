@@ -27,10 +27,10 @@ type resizeParams struct {
 
 const maxImageScalerProcs = 30
 
-var numScalerProcs uint32 = 0
+var numScalerProcs int32 = 0
 
 func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData string) {
-	if atomic.AddUint32(&numScalerProcs, 1) > maxImageScalerProcs {
+	if atomic.AddInt32(&numScalerProcs, 1) > maxImageScalerProcs {
 		helper.Fail500(w, req, fmt.Errorf("Too many image resize requests (max %d)", maxImageScalerProcs))
 		return
 	}
@@ -80,6 +80,8 @@ func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 		logger.Errorf("Failed serving image data to client after %d bytes: %v", bytesWritten, err)
 		return
 	}
+
+	atomic.AddInt32(&numScalerProcs, -1)
 
 	logger.Infof("Served send-scaled-img request (bytes written: %d)", bytesWritten)
 }
