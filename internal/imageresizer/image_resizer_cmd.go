@@ -21,8 +21,8 @@ type resizer struct{ senddata.Prefix }
 var ImageResizerCmd = &resizer{"send-scaled-img:"}
 
 type resizeParams struct {
-	Location, Scaler string
-	Width            uint
+	Location string
+	Width    uint
 }
 
 const maxImageScalerProcs = 30
