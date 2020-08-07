@@ -24,7 +24,7 @@ func main() {
 	if err != nil {
 		log.Fatalln("Failed downloading image data:", err)
 	}
-
+	
 	if err := resizeImageGMagick(imageData, requestedWidth); err != nil {
 		log.Fatalln("Failed resizing image:", err)
 	}

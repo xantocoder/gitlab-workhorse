@@ -7,7 +7,6 @@ import (
 	"net"
 	"strings"
 	"io"
-	"io/ioutil"
 	"fmt"
 
 	"gitlab.com/gitlab-org/labkit/correlation"
@@ -49,8 +48,6 @@ func ReadAllData(path string) (io.Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer io.Copy(ioutil.Discard, res.Body)
-	defer res.Body.Close()
 
 	if res.StatusCode == http.StatusOK {
 		return res.Body, nil
