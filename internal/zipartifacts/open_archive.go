@@ -85,6 +85,7 @@ func openHTTPArchive(ctx context.Context, archivePath string) (*archive, error) 
 		return nil, fmt.Errorf("can't create HTTP GET %q: %v", scrubbedArchivePath, err)
 	}
 	req = req.WithContext(ctx)
+	req.Header.Set("Content-Type", "application/octet-stream")
 
 	resp, err := httpClient.Do(req.WithContext(ctx))
 	if err != nil {

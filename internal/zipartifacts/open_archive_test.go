@@ -58,6 +58,7 @@ func TestOpenHTTPArchiveNotSendingAcceptEncodingHeader(t *testing.T) {
 	requestHandler := func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, "GET", r.Method)
 		require.Nil(t, r.Header["Accept-Encoding"])
+		require.Equal(t, "application/octet-stream", r.Header.Get("Content-Type"))
 		w.WriteHeader(http.StatusOK)
 	}
 
