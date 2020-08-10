@@ -31,7 +31,7 @@ var numScalerProcs int32 = 0
 
 func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData string) {
 	if atomic.AddInt32(&numScalerProcs, 1) > maxImageScalerProcs {
-		helper.Fail500(w, req, fmt.Errorf("Too many image resize requests (max %d)", maxImageScalerProcs))
+		helper.Fail500(w, req, fmt.Errorf("too many image resize requests (max %d)", maxImageScalerProcs))
 		return
 	}
 	var params resizeParams
