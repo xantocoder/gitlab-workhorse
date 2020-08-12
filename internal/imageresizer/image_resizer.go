@@ -87,9 +87,10 @@ func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 
 	defer helper.CleanUpProcessGroup(resizeCmd)
 
-	// TODO: Double-check it. I noticed we do it some injectors.
-	// Without it, I fail with "http: wrote more than the declared Content-Length"
-	//w.Header().Del("Content-Length")
+	// TODO: Double-check it. I noticed we do it in some injectors.
+	// Without it, I fail with "http: wrote more than the declared Content-Length" in the `io.Copy`.
+	// I still receive "Content-Length" header with this change (checked locally).
+	w.Header().Del("Content-Length")
 
 	bytesWritten, err := io.Copy(w, outImageReader)
 
