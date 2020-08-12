@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"os/exec"
-	"strconv"
 	"sync/atomic"
 	"syscall"
 
@@ -25,49 +23,40 @@ type resizeParams struct {
 	Width    uint
 }
 
-const maxImageScalerProcs = 30
+const maxImageScalerProcs = 100
 
 var numScalerProcs int32 = 0
 
 func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData string) {
 	if atomic.AddInt32(&numScalerProcs, 1) > maxImageScalerProcs {
-		helper.Fail500(w, req, fmt.Errorf("too many image resize requests (max %d)", maxImageScalerProcs))
+		helper.Fail500(w, req, fmt.Errorf("ImageResizer: too many image resize requests (max %d)", maxImageScalerProcs))
 		return
 	}
-	var params resizeParams
+	defer atomic.AddInt32(&numScalerProcs, -1)
 
-	if err := r.Unpack(&params, paramsData); err != nil {
-		helper.Fail500(w, req, fmt.Errorf("ImageResizer: unpack paramsData: %v", err))
-		return
-	}
-
-	if params.Location == "" {
-		helper.Fail500(w, req, fmt.Errorf("ImageResizer: Location is empty"))
-		return
-	}
-
-	// Set up environment, run `cmd/resize-image`
-	resizeCmd := exec.Command("gitlab-resize-image")
-	resizeCmd.Env = append(os.Environ(),
-		"WH_RESIZE_IMAGE_LOCATION="+params.Location,
-		"WH_RESIZE_IMAGE_WIDTH="+strconv.Itoa(int(params.Width)),
-	)
 	logger := log.ContextLogger(req.Context())
-	resizeCmd.Stderr = logger.Writer()
-	resizeCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	stdout, err := resizeCmd.StdoutPipe()
+
+	params, err := r.unpackParameters(paramsData)
 	if err != nil {
-		helper.Fail500(w, req, fmt.Errorf("create gitlab-resize-image stdout pipe: %v", err))
+		helper.Fail500(w, req, fmt.Errorf("ImageResizer: Failed reading image resize params: %v", err))
+		return		
+	}
+
+	inImageReader, err := ReadAllData(params.Location)
+	if err != nil {
+		helper.Fail500(w, req, fmt.Errorf("ImageResizer: Failed opening image data stream: %v", err))
 		return
 	}
 
-	if err := resizeCmd.Start(); err != nil {
-		helper.Fail500(w, req, fmt.Errorf("start %v: %v", resizeCmd.Args, err))
+	resizeCmd, outImageReader, err := r.startResizeImageCommand(inImageReader, logger.Writer(), params.Width)
+	if err != nil {
+		helper.Fail500(w, req, fmt.Errorf("ImageResizer: Failed forking into graphicsmagick: %v", err))
 		return
 	}
+
 	defer helper.CleanUpProcessGroup(resizeCmd)
 
-	bytesWritten, err := io.Copy(w, stdout)
+	bytesWritten, err := io.Copy(w, outImageReader)
 
 	if bytesWritten == 0 {
 		// we can only write out a full 500 if we haven't already  tried to serve the image
@@ -81,7 +70,36 @@ func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 		return
 	}
 
-	atomic.AddInt32(&numScalerProcs, -1)
-
 	logger.Infof("Served send-scaled-img request (bytes written: %d)", bytesWritten)
+}
+
+func (r *resizer) unpackParameters(paramsData string) (*resizeParams, error) {
+	var params resizeParams
+	if err := r.Unpack(&params, paramsData); err != nil {
+		return nil, err
+	}
+
+	if params.Location == "" {
+		return nil, fmt.Errorf("ImageResizer: Location is empty")
+	}
+
+	return &params, nil
+}
+
+func (r * resizer) startResizeImageCommand(imageReader io.Reader, errorWriter io.Writer, width uint) (*exec.Cmd, io.ReadCloser, error) {
+	cmd := exec.Command("gm", "convert", "-resize", fmt.Sprintf("%dx", width), "-", "-")
+	cmd.Stdin = imageReader
+	cmd.Stderr = errorWriter
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if err := cmd.Start(); err != nil {
+		return nil, nil, err
+	}
+
+	return cmd, stdout, nil
 }
