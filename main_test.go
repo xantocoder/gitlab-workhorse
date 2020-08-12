@@ -368,6 +368,23 @@ func TestArtifactsGetSingleFile(t *testing.T) {
 	assertNginxResponseBuffering(t, "no", resp, "GET %q: nginx response buffering", resourcePath)
 }
 
+func TestImageResizing(t *testing.T) {
+	// We used sample image file (`image.png`), prepared the resized version
+	// via `gm` (resulted in `image_downscaled_to_40px.png`) which we use for the response validation
+	imageLocation := `testdata/image.png`
+	requestedWidth := 40
+	jsonParams := fmt.Sprintf(`{"Location":"%s","Width":%d}`, imageLocation, requestedWidth)
+	resourcePath := "/uploads/-/system/user/avatar/123/avatar.png?width=40"
+
+	fileContents, _ := ioutil.ReadFile("testdata/image_downscaled_to_40px.png")
+
+	resp, body, err := doSendDataRequest(resourcePath, "send-scaled-img", jsonParams)
+	require.NoError(t, err)
+
+	assert.Equal(t, 200, resp.StatusCode, "GET %q: status code", resourcePath)
+	assert.Equal(t, fileContents, body, "GET %q: response body", resourcePath)
+}
+
 func TestSendURLForArtifacts(t *testing.T) {
 	expectedBody := strings.Repeat("CONTENT!", 1024)
 
