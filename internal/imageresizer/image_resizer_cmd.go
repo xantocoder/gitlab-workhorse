@@ -23,7 +23,7 @@ import (
 
 type resizer struct{ senddata.Prefix }
 
-var ImageResizerCmd = &resizer{"send-scaled-img:"}
+var SendScaledImage = &resizer{"send-scaled-img:"}
 
 type resizeParams struct {
 	Location string
