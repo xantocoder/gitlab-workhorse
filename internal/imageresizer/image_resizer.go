@@ -56,11 +56,14 @@ var httpClient = &http.Client{
 // This Injecter forks into graphicsmagick to resize an image identified by path or URL
 // and streams the resized image back to the client
 func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData string) {
-	if atomic.AddInt32(&numScalerProcs, 1) > maxImageScalerProcs {
+	// Only allow more scaling requests if we haven't yet reached the maximum allows number
+	// of concurrent graphicsmagick processes
+	numScalerProcs := atomic.AddInt32(&numScalerProcs, 1)
+	defer atomic.AddInt32(&numScalerProcs, -1)
+	if numScalerProcs > maxImageScalerProcs {
 		helper.Fail500(w, req, fmt.Errorf("ImageResizer: too many image resize requests (max %d)", maxImageScalerProcs))
 		return
 	}
-	defer atomic.AddInt32(&numScalerProcs, -1)
 
 	logger := log.ContextLogger(req.Context())
 
