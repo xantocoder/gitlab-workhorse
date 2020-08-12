@@ -3,12 +3,19 @@ package imageresizer
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"os"
 	"os/exec"
+	"strings"
 	"sync/atomic"
 	"syscall"
+	"time"
 
+	"gitlab.com/gitlab-org/labkit/correlation"
 	"gitlab.com/gitlab-org/labkit/log"
+
+	"gitlab.com/gitlab-org/labkit/tracing"
 
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/helper"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/senddata"
@@ -27,6 +34,27 @@ const maxImageScalerProcs = 100
 
 var numScalerProcs int32 = 0
 
+// Images might be located remotely in object storage, in which case we need to stream
+// it via http(s)
+var httpTransport = tracing.NewRoundTripper(correlation.NewInstrumentedRoundTripper(&http.Transport{
+	Proxy: http.ProxyFromEnvironment,
+	DialContext: (&net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 10 * time.Second,
+	}).DialContext,
+	MaxIdleConns:          2,
+	IdleConnTimeout:       30 * time.Second,
+	TLSHandshakeTimeout:   10 * time.Second,
+	ExpectContinueTimeout: 10 * time.Second,
+	ResponseHeaderTimeout: 30 * time.Second,
+}))
+
+var httpClient = &http.Client{
+	Transport: httpTransport,
+}
+
+// This Injecter forks into graphicsmagick to resize an image identified by path or URL
+// and streams the resized image back to the client
 func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData string) {
 	if atomic.AddInt32(&numScalerProcs, 1) > maxImageScalerProcs {
 		helper.Fail500(w, req, fmt.Errorf("ImageResizer: too many image resize requests (max %d)", maxImageScalerProcs))
@@ -39,16 +67,16 @@ func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 	params, err := r.unpackParameters(paramsData)
 	if err != nil {
 		helper.Fail500(w, req, fmt.Errorf("ImageResizer: Failed reading image resize params: %v", err))
-		return		
+		return
 	}
 
-	inImageReader, err := ReadAllData(params.Location)
+	inImageReader, err := readSourceImageData(params.Location)
 	if err != nil {
 		helper.Fail500(w, req, fmt.Errorf("ImageResizer: Failed opening image data stream: %v", err))
 		return
 	}
 
-	resizeCmd, outImageReader, err := r.startResizeImageCommand(inImageReader, logger.Writer(), params.Width)
+	resizeCmd, outImageReader, err := startResizeImageCommand(inImageReader, logger.Writer(), params.Width)
 	if err != nil {
 		helper.Fail500(w, req, fmt.Errorf("ImageResizer: Failed forking into graphicsmagick: %v", err))
 		return
@@ -86,7 +114,7 @@ func (r *resizer) unpackParameters(paramsData string) (*resizeParams, error) {
 	return &params, nil
 }
 
-func (r * resizer) startResizeImageCommand(imageReader io.Reader, errorWriter io.Writer, width uint) (*exec.Cmd, io.ReadCloser, error) {
+func startResizeImageCommand(imageReader io.Reader, errorWriter io.Writer, width uint) (*exec.Cmd, io.ReadCloser, error) {
 	cmd := exec.Command("gm", "convert", "-resize", fmt.Sprintf("%dx", width), "-", "-")
 	cmd.Stdin = imageReader
 	cmd.Stderr = errorWriter
@@ -102,4 +130,26 @@ func (r * resizer) startResizeImageCommand(imageReader io.Reader, errorWriter io
 	}
 
 	return cmd, stdout, nil
+}
+
+func isURL(location string) bool {
+	return strings.HasPrefix(location, "http://") || strings.HasPrefix(location, "https://")
+}
+
+func readSourceImageData(location string) (io.Reader, error) {
+	if !isURL(location) {
+		return os.Open(location)
+	}
+
+	res, err := httpClient.Get(location)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode == http.StatusOK {
+		return res.Body, nil
+	}
+
+	return nil, fmt.Errorf("ImageResizer: cannot read data from %q: %d %s",
+		location, res.StatusCode, res.Status)
 }
