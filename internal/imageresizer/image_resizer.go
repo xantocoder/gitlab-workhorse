@@ -17,6 +17,8 @@ import (
 
 	"gitlab.com/gitlab-org/labkit/tracing"
 
+	"github.com/sirupsen/logrus"
+
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/helper"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/senddata"
 )
@@ -56,57 +58,36 @@ var httpClient = &http.Client{
 // This Injecter forks into graphicsmagick to resize an image identified by path or URL
 // and streams the resized image back to the client
 func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData string) {
-	// Only allow more scaling requests if we haven't yet reached the maximum allows number
-	// of concurrent graphicsmagick processes
-	numScalerProcs := atomic.AddInt32(&numScalerProcs, 1)
-	defer atomic.AddInt32(&numScalerProcs, -1)
-	if numScalerProcs > maxImageScalerProcs {
-		helper.Fail500(w, req, fmt.Errorf("ImageResizer: too many image resize requests (max %d)", maxImageScalerProcs))
-		return
-	}
-
 	logger := log.ContextLogger(req.Context())
-
 	params, err := r.unpackParameters(paramsData)
 	if err != nil {
+		// This means the response header coming from Rails was malformed; there is no way
+		// to sensibly recover from this other than failing fast
 		helper.Fail500(w, req, fmt.Errorf("ImageResizer: Failed reading image resize params: %v", err))
 		return
 	}
 
-	inImageReader, err := readSourceImageData(params.Location)
+	sourceImageReader, err := readSourceImageData(params.Location)
 	if err != nil {
+		// This means we cannot even read the input image; fail fast.
 		helper.Fail500(w, req, fmt.Errorf("ImageResizer: Failed opening image data stream: %v", err))
 		return
 	}
 
-	resizeCmd, outImageReader, err := startResizeImageCommand(inImageReader, logger.Writer(), params.Width)
-	if err != nil {
-		helper.Fail500(w, req, fmt.Errorf("ImageResizer: Failed forking into graphicsmagick: %v", err))
-		return
-	}
-
+	// Past this point we attempt to rescale the image; if this should fail for any reason, we
+	// simply fail over to rendering out the original image unchanged.
+	defer atomic.AddInt32(&numScalerProcs, -1)
+	imageReader, resizeCmd := tryResizeImage(sourceImageReader, params.Width, logger)
 	defer helper.CleanUpProcessGroup(resizeCmd)
 
-	// TODO: Double-check it. I noticed we do it in some injectors.
-	// Without it, I fail with "http: wrote more than the declared Content-Length" in the `io.Copy`.
-	// I still receive "Content-Length" header with this change (checked locally).
-	w.Header().Del("Content-Length")
-
-	bytesWritten, err := io.Copy(w, outImageReader)
-
+	bytesWritten, err := writeTargetImageData(w, imageReader)
 	if bytesWritten == 0 {
 		// we can only write out a full 500 if we haven't already  tried to serve the image
 		helper.Fail500(w, req, err)
 		return
 	}
 
-	if err != nil {
-		// Is there a better way to recover from this, since we will abort mid-stream?
-		logger.Errorf("Failed serving image data to client after %d bytes: %v", bytesWritten, err)
-		return
-	}
-
-	logger.Infof("Served send-scaled-img request (bytes written: %d)", bytesWritten)
+	logger.Infof("ImageResizer: bytes written: %d", bytesWritten)
 }
 
 func (r *resizer) unpackParameters(paramsData string) (*resizeParams, error) {
@@ -120,6 +101,23 @@ func (r *resizer) unpackParameters(paramsData string) (*resizeParams, error) {
 	}
 
 	return &params, nil
+}
+
+// Attempts to rescale the given image data, or in case of errors, falls back to the original image.
+func tryResizeImage(r io.Reader, width uint, logger *logrus.Entry) (io.Reader, *exec.Cmd) {
+	// Only allow more scaling requests if we haven't yet reached the maximum allows number
+	// of concurrent graphicsmagick processes
+	if numScalerProcs := atomic.AddInt32(&numScalerProcs, 1); numScalerProcs > maxImageScalerProcs {
+		logger.Errorf("ImageResizer: too many image resize requests (cur: %d, max %d)", numScalerProcs, maxImageScalerProcs)
+		return r, nil
+	}
+
+	resizeCmd, resizedImageReader, err := startResizeImageCommand(r, logger.Writer(), width)
+	if err != nil {
+		logger.Errorf("ImageResizer: failed forking into graphicsmagick: %v", err)
+		return r, nil
+	}
+	return resizedImageReader, resizeCmd
 }
 
 func startResizeImageCommand(imageReader io.Reader, errorWriter io.Writer, width uint) (*exec.Cmd, io.ReadCloser, error) {
@@ -160,4 +158,20 @@ func readSourceImageData(location string) (io.Reader, error) {
 
 	return nil, fmt.Errorf("ImageResizer: cannot read data from %q: %d %s",
 		location, res.StatusCode, res.Status)
+}
+
+func writeTargetImageData(w http.ResponseWriter, r io.Reader) (int64, error) {
+	// TODO: Double-check it. I noticed we do it in some injectors.
+	// Without it, I fail with "http: wrote more than the declared Content-Length" in the `io.Copy`.
+	// I still receive "Content-Length" header with this change (checked locally).
+	w.Header().Del("Content-Length")
+
+	bytesWritten, err := io.Copy(w, r)
+
+	if err != nil {
+		// Is there a better way to recover from this, since we will abort mid-stream?
+		return 0, fmt.Errorf("failed serving image data to client after %d bytes: %v", bytesWritten, err)
+	}
+
+	return bytesWritten, nil
 }
