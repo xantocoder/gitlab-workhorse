@@ -18,7 +18,7 @@ BUILD_TAGS := tracer_static tracer_static_jaeger continuous_profiler_stackdriver
 MINIMUM_SUPPORTED_GO_VERSION := 1.11
 
 export GOBIN := $(TARGET_DIR)/bin
-export PATH := $(GOBIN):$(BUILD_DIR)/testdata/vendor:$(PATH)
+export PATH := $(GOBIN):$(BUILD_DIR)/vendor:$(PATH)
 export GOPROXY ?= https://proxy.golang.org
 export GO111MODULE=on
 
