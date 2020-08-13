@@ -1,27 +1,48 @@
 #!/usr/bin/env sh 
 set -ex
 
+gm_version="${GM_VERSION:-1.3.34}"
+
 original_dir=$(pwd)
-export mydir=$(mktemp -d)
-trap "cd $original_dir; rm -rf ${mydir}" EXIT
-export CPPFLAGS="-I$mydir/include"
-export LDFLAGS="-L$mydir/lib"
-cd $mydir
+build_dir=$(mktemp -d)
+trap "cd ${original_dir}; rm -rf ${build_dir}" EXIT
 
-# download sources
-curl -L ftp://ftp.graphicsmagick.org/pub/GraphicsMagick/1.3/GraphicsMagick-1.3.34.tar.gz | tar xvz
+cd "${build_dir}"
 
-# zlib needed for png
-curl -L ftp://ftp.graphicsmagick.org/pub/GraphicsMagick/delegates/zlib-1.2.11.tar.gz | tar xvz
-curl -L ftp://ftp.graphicsmagick.org/pub/GraphicsMagick/delegates/libpng-1.6.37.tar.gz | tar xvz
-curl -L ftp://ftp.graphicsmagick.org/pub/GraphicsMagick/delegates/libwebp-1.0.0.tar.gz | tar xvz
-curl -L ftp://ftp.graphicsmagick.org/pub/GraphicsMagick/delegates/jpegsrc.v6b2.tar.gz | tar xvz
+curl -L "ftp://ftp.graphicsmagick.org/pub/GraphicsMagick/1.3/GraphicsMagick-${gm_version}.tar.gz" | tar xvz
 
-# use `less zlib-<TAB>/configure` to discover configure options
-(cd zlib-*           && ./configure --static                             --prefix=$mydir && make install)
-(cd libpng-*         && ./configure --disable-shared                     --prefix=$mydir && make install)
-(cd libwebp-*        && ./configure --disable-shared --enable-libwebpmux --prefix=$mydir && make install)
-(cd jpeg-*           && ./configure --disable-shared                     --prefix=$mydir && make install)
-(cd GraphicsMagick-* && ./configure --disable-installed                  --prefix=$mydir && make install)
-./bin/gm version
-cp ./bin/gm  "${original_dir}/vendor"
+cd "GraphicsMagick-${gm_version}"
+
+./configure \
+  --prefix="${build_dir}" \
+  --disable-installed \
+  --enable-shared=no \
+  --enable-static=yes \
+  --disable-openmp \
+  --without-magick-plus-plus \
+  --with-perl=no \
+  --without-bzlib \
+  --without-dps \
+  --without-fpx \
+  --without-gslib \
+  --without-jbig \
+  --without-webp \
+  --without-jp2 \
+  --without-lcms2 \
+  --without-trio \
+  --without-ttf \
+  --without-umem \
+  --without-wmf \
+  --without-xml \
+  --without-x \
+  --with-tiff=yes \
+  --with-lzma=yes \
+  --with-jpeg=yes \
+  --with-zlib=yes \
+  --with-png=yes
+
+make
+
+./utilities/gm version
+
+cp ./utilities/gm  "${original_dir}/vendor/gm"
