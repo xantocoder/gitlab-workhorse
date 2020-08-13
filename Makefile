@@ -53,6 +53,7 @@ gitlab-workhorse:	$(TARGET_SETUP) $(shell find . -name '*.go' | grep -v '^\./_')
 	$(GOBUILD) -tags "$(BUILD_TAGS)" -o $(BUILD_DIR)/$@ $(PKG)
 
 vendor/gm:
+	mkdir -p vendor
 	_support/install_graphicsmagick.sh
 
 .PHONY:	install
