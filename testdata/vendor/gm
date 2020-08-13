@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-set -ex
+set -e
 
 cmd=$1
 resize=$2
@@ -9,5 +9,5 @@ outfile=$5
 
 wd=`pwd`
 
-docker pull irineutfilho/graphicsmagick
+docker pull irineutfilho/graphicsmagick &> /dev/null
 docker run --rm -i -v $wd:/wd -w /wd irineutfilho/graphicsmagick gm $@
