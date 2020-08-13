@@ -7,3 +7,4 @@ testdata/public
 /_build
 coverage.html
 /*.toml
+/vendor
