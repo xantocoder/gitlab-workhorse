@@ -18,7 +18,7 @@ BUILD_TAGS := tracer_static tracer_static_jaeger continuous_profiler_stackdriver
 MINIMUM_SUPPORTED_GO_VERSION := 1.11
 
 export GOBIN := $(TARGET_DIR)/bin
-export PATH := $(GOBIN):$(BUILD_DIR)/vendor:$(PATH)
+export PATH := $(GOBIN):$(PATH)
 export GOPROXY ?= https://proxy.golang.org
 export GO111MODULE=on
 
@@ -51,10 +51,6 @@ gitlab-zip-metadata:	$(TARGET_SETUP) $(shell find cmd/gitlab-zip-metadata/ -name
 gitlab-workhorse:	$(TARGET_SETUP) $(shell find . -name '*.go' | grep -v '^\./_')
 	$(call message,Building $@)
 	$(GOBUILD) -tags "$(BUILD_TAGS)" -o $(BUILD_DIR)/$@ $(PKG)
-
-vendor/gm:
-	mkdir -p vendor
-	_support/install_graphicsmagick.sh
 
 .PHONY:	install
 install:	gitlab-workhorse gitlab-zip-cat gitlab-zip-metadata
@@ -107,7 +103,6 @@ clean-build:
 .PHONY:	prepare-tests
 prepare-tests:	testdata/data/group/test.git $(EXE_ALL)
 prepare-tests:	testdata/scratch
-prepare-tests:  vendor/gm
 
 testdata/data/group/test.git:
 	$(call message,$@)
