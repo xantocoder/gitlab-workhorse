@@ -22,6 +22,9 @@ verify:
   script:
   - go env
   - make verify
+  cache:
+    paths:
+    - /go
 
 .test:
   services:
