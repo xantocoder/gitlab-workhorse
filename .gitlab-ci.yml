@@ -20,6 +20,7 @@ variables:
 
 verify:
   script:
+  - go env
   - make verify
 
 .test:
