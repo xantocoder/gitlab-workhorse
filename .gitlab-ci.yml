@@ -18,13 +18,13 @@ default:
 variables:
   SAST_DISABLE_DIND: "true"
 
+cache:
+  paths:
+  - _build
+
 verify:
   script:
-  - go env
-  - make
-  cache:
-    paths:
-    - _build
+  - make verify
 
 .test:
   services:
