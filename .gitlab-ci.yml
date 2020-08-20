@@ -21,7 +21,6 @@ variables:
 verify:
   script:
   - go env
-  - #make verify
   - make
   cache:
     paths:
