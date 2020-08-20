@@ -22,6 +22,10 @@ export PATH := $(GOBIN):$(PATH)
 export GOPROXY ?= https://proxy.golang.org
 export GO111MODULE=on
 
+ifneq ($(strip $(CI)),)
+export GOPATH := $(TARGET_DIR)
+endif
+
 LOCAL_GO_FILES = $(shell find . -type f -name '*.go' | grep -v -e /_ -e /testdata/)
 
 define message

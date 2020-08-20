@@ -17,7 +17,6 @@ default:
 # Disable DIND for SAST because we need to execute a before_script in the gosec-sast job
 variables:
   SAST_DISABLE_DIND: "true"
-  GOPATH: "_build"
 
 verify:
   script:
