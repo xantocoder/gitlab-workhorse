@@ -1,5 +1,11 @@
 # Changelog for gitlab-workhorse
 
+## v8.42.1
+
+### Fixed
+- Fix nil pointer exception when no object storage config is defined
+  https://gitlab.com/gitlab-org/gitlab-workhorse/-/merge_requests/565
+
 ## v8.42.0
 
 ### Added
