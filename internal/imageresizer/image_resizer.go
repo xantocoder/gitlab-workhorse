@@ -31,8 +31,8 @@ type resizer struct{ senddata.Prefix }
 var SendScaledImage = &resizer{"send-scaled-img:"}
 
 type resizeParams struct {
-	Location string
-	Width    uint
+	Location, Format string
+	Width            uint
 }
 
 const maxImageScalerProcs = 100
@@ -91,7 +91,7 @@ func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 
 	// Past this point we attempt to rescale the image; if this should fail for any reason, we
 	// simply fail over to rendering out the original image unchanged.
-	imageReader, resizeCmd := tryResizeImage(req.Context(), sourceImageReader, params.Width, logger)
+	imageReader, resizeCmd := tryResizeImage(req.Context(), sourceImageReader, params, logger)
 	defer helper.CleanUpProcessGroup(resizeCmd)
 
 	w.Header().Del("Content-Length")
@@ -114,11 +114,15 @@ func (r *resizer) unpackParameters(paramsData string) (*resizeParams, error) {
 		return nil, fmt.Errorf("ImageResizer: Location is empty")
 	}
 
+	if params.Format == "" {
+		return nil, fmt.Errorf("ImageResizer: Image MIME type must be set")
+	}
+
 	return &params, nil
 }
 
 // Attempts to rescale the given image data, or in case of errors, falls back to the original image.
-func tryResizeImage(ctx context.Context, r io.Reader, width uint, logger *logrus.Entry) (io.Reader, *exec.Cmd) {
+func tryResizeImage(ctx context.Context, r io.Reader, params *resizeParams, logger *logrus.Entry) (io.Reader, *exec.Cmd) {
 	// Only allow more scaling requests if we haven't yet reached the maximum allows number
 	// of concurrent graphicsmagick processes
 	if n := atomic.AddInt32(&numScalerProcs, 1); n > maxImageScalerProcs {
@@ -132,7 +136,14 @@ func tryResizeImage(ctx context.Context, r io.Reader, width uint, logger *logrus
 		atomic.AddInt32(&numScalerProcs, -1)
 	}()
 
-	resizeCmd, resizedImageReader, err := startResizeImageCommand(ctx, r, logger.Writer(), width)
+	width := params.Width
+	gmFileSpec := determineFilePrefix(params.Format)
+	if gmFileSpec == "" {
+		logger.Errorf("ImageResizer: unexpected MIME type: %s", params.Format)
+		return r, nil
+	}
+
+	resizeCmd, resizedImageReader, err := startResizeImageCommand(ctx, r, logger.Writer(), width, gmFileSpec)
 	if err != nil {
 		logger.WithError(err).Error("ImageResizer: failed forking into graphicsmagick")
 		return r, nil
@@ -140,8 +151,19 @@ func tryResizeImage(ctx context.Context, r io.Reader, width uint, logger *logrus
 	return resizedImageReader, resizeCmd
 }
 
-func startResizeImageCommand(ctx context.Context, imageReader io.Reader, errorWriter io.Writer, width uint) (*exec.Cmd, io.ReadCloser, error) {
-	cmd := exec.CommandContext(ctx, "gm", "convert", "-resize", fmt.Sprintf("%dx", width), "-", "-")
+func determineFilePrefix(format string) string {
+	switch format {
+	case "image/png":
+		return "png:"
+	case "image/jpeg":
+		return "jpg:"
+	default:
+		return ""
+	}
+}
+
+func startResizeImageCommand(ctx context.Context, imageReader io.Reader, errorWriter io.Writer, width uint, gmFileSpec string) (*exec.Cmd, io.ReadCloser, error) {
+	cmd := exec.CommandContext(ctx, "gm", "convert", "-resize", fmt.Sprintf("%dx", width), gmFileSpec+"-", "-")
 	cmd.Stdin = imageReader
 	cmd.Stderr = errorWriter
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
