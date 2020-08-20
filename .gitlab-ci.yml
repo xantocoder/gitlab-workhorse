@@ -19,6 +19,7 @@ variables:
   SAST_DISABLE_DIND: "true"
 
 cache:
+  key: ${CI_JOB_NAME}
   paths:
   - _build
 
