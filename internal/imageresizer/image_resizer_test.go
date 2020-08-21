@@ -67,6 +67,15 @@ func TestTryResizeImageFailsOverToOriginalImageWhenFormatNotSupported(t *testing
 	require.Equal(t, inFile, reader)
 }
 
+func TestGraphicsMagickFailsWhenFormatNotMatchingFileContents(t *testing.T) {
+	inParams := resizeParams{Location: "/path/to/img", Width: 64, Format: "image/jpeg"}
+	inFile := testImage(t) // this is PNG file; gm should fail fast in this case
+
+	_, cmd := tryResizeImage(context.TODO(), inFile, &inParams, logger)
+
+	require.Error(t, cmd.Wait())
+}
+
 // The Rails applications sends a Base64 encoded JSON string carrying
 // these parameters in an HTTP response header
 func encodeParams(t *testing.T, p *resizeParams) string {
