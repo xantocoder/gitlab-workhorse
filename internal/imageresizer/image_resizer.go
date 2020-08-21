@@ -100,6 +100,11 @@ func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 		helper.Fail500(w, req, err)
 		return
 	}
+	if bytesWritten <= 0 {
+		// If we haven't written anything yet, it probably means that `gm` failed to execute
+		helper.Fail500(w, req, fmt.Errorf("ImageResizer: failed writing output stream"))
+		return
+	}
 
 	logger.WithField("bytes_written", bytesWritten).Print("ImageResizer: success")
 }
