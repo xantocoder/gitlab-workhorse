@@ -168,7 +168,12 @@ func determineFilePrefix(format string) string {
 }
 
 func startResizeImageCommand(ctx context.Context, imageReader io.Reader, errorWriter io.Writer, width uint, gmFileSpec string) (*exec.Cmd, io.ReadCloser, error) {
-	cmd := exec.CommandContext(ctx, "gm", "convert", "-resize", fmt.Sprintf("%dx", width), gmFileSpec+"-", "-")
+	cmd := exec.CommandContext(ctx, "gm", "convert",
+		"-limit", "Threads", "1",
+		"-limit", "Memory", "1MB",
+		"-resize", fmt.Sprintf("%dx", width),
+		gmFileSpec+"-", "-")
+
 	cmd.Stdin = imageReader
 	cmd.Stderr = errorWriter
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
