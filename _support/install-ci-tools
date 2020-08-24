@@ -1,0 +1,13 @@
+#!/bin/sh
+set -e
+
+cd _build
+export GOBIN=$(pwd)/bin
+
+if [ ! -f go.mod ] ; then
+  go mod init tools
+fi
+
+go get golang.org/x/lint/golint@738671d3881b9731cc63024d5d88cf28db875626
+go get golang.org/x/tools/cmd/goimports@416e8f4faf8ade3138b93e9137447df0b332fab7
+go get honnef.co/go/tools/cmd/staticcheck@81508471876c7902b8ca236ae35f897b1777c65a

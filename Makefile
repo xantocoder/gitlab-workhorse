@@ -115,9 +115,8 @@ testdata/scratch:
 verify: lint vet detect-context check-formatting staticcheck
 
 .PHONY: lint
-lint: $(TARGET_SETUP)
+lint: $(TARGET_SETUP) tools
 	$(call message,Verify: $@)
-	go install golang.org/x/lint/golint
 	@_support/lint.sh ./...
 
 .PHONY: vet
@@ -131,7 +130,7 @@ detect-context: $(TARGET_SETUP)
 	_support/detect-context.sh
 
 .PHONY: check-formatting
-check-formatting: $(TARGET_SETUP) install-goimports
+check-formatting: $(TARGET_SETUP) tools
 	$(call message,Verify: $@)
 	@_support/validate-formatting.sh $(LOCAL_GO_FILES)
 
@@ -139,19 +138,17 @@ check-formatting: $(TARGET_SETUP) install-goimports
 # Additionally, megacheck will not return failure exit codes unless explicitly told to via the
 # `-simple.exit-non-zero` `-unused.exit-non-zero` and `-staticcheck.exit-non-zero` flags
 .PHONY: staticcheck
-staticcheck: $(TARGET_SETUP)
+staticcheck: $(TARGET_SETUP) tools
 	$(call message,Verify: $@)
-	go install honnef.co/go/tools/cmd/staticcheck
 	@ $(GOBIN)/staticcheck -go $(MINIMUM_SUPPORTED_GO_VERSION) ./...
 
 # In addition to fixing imports, goimports also formats your code in the same style as gofmt
 # so it can be used as a replacement.
 .PHONY: fmt
-fmt: $(TARGET_SETUP) install-goimports
+fmt: $(TARGET_SETUP) tools
 	$(call message,$@)
 	@goimports -w -local $(PKG) -l $(LOCAL_GO_FILES)
 
-.PHONY:	goimports
-install-goimports:	$(TARGET_SETUP)
-	$(call message,$@)
-	go install golang.org/x/tools/cmd/goimports
+.PHONY: tools
+tools:
+	_support/install-ci-tools
