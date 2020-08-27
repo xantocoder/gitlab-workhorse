@@ -12,8 +12,6 @@ import (
 	"os"
 
 	"golang.org/x/sys/unix"
-
-	"gitlab.com/gitlab-org/gitlab-workhorse/internal/imageresizer"
 )
 
 // https://github.com/torvalds/linux/blob/master/include/uapi/linux/seccomp.h#L11
@@ -40,18 +38,14 @@ func main() {
 		log.Fatalln("Failed obtaining MagickWand:", err)
 	}
 
-	reader, _, err := imageresizer.OpenSourceImage("/home/mk/Downloads/gitlab_small.png")
-	if err != nil {
-		log.Fatalln("Failed opening source image:", err)
-	}
-	imageData, err := ioutil.ReadAll(reader)
+	imageData, err := ioutil.ReadAll(os.Stdin)
 	if err != nil {
 		log.Fatalln("Failed reading source image:", err)
 	}
 
 	magickOp("MagickReadImageBlob", C.MagickReadImageBlob(wand, (*C.uchar)(&imageData[0]), C.ulong(len(imageData))))
 	magickOp("MagickResizeImage", C.MagickResizeImage(wand, 200, 200, C.LanczosFilter, 0.0))
-	magickOp("MagickWriteImage", C.MagickWriteImage(wand, C.CString("./out.png")))
+	magickOp("MagickWriteImage", C.MagickWriteImage(wand, C.CString("-")))
 }
 
 func magickOp(opn string, status C.uint) {
