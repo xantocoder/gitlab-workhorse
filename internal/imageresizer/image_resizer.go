@@ -103,7 +103,7 @@ func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 		return
 	}
 
-	sourceImageReader, filesize, err := openSourceImage(params.Location)
+	sourceImageReader, filesize, err := OpenSourceImage(params.Location)
 	if err != nil {
 		// This means we cannot even read the input image; fail fast.
 		helper.Fail500(w, req, fmt.Errorf("ImageResizer: Failed opening image data stream: %v", err))
@@ -187,7 +187,7 @@ func isURL(location string) bool {
 	return strings.HasPrefix(location, "http://") || strings.HasPrefix(location, "https://")
 }
 
-func openSourceImage(location string) (io.ReadCloser, int64, error) {
+func OpenSourceImage(location string) (io.ReadCloser, int64, error) {
 	if isURL(location) {
 		return openFromUrl(location)
 	}
