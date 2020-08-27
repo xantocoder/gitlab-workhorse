@@ -7,8 +7,8 @@ package main
 // #include <wand/magick_wand.h>
 import "C"
 import (
+	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 
 	"golang.org/x/sys/unix"
@@ -18,43 +18,58 @@ import (
 const seccompModeStrict = 1
 
 func strictMode() {
-	println("Setting strict mode")
+	log("Setting strict mode")
 	err := unix.Prctl(unix.PR_SET_SECCOMP, seccompModeStrict, 0, 0, 0)
 	if err != nil {
-		log.Fatalln(err)
+		log(err)
 	}
-	println("Strict mode set")
+	log("Strict mode set")
 }
 
 func main() {
 	args := os.Args
 	_, err := C.InitializeMagick(C.CString(args[0]))
 	if err != nil {
-		log.Fatalln("Failed initializing GraphicsMagick:", err)
+		log("Failed initializing GraphicsMagick:", err)
 	}
 
 	wand, err := C.NewMagickWand()
 	if err != nil {
-		log.Fatalln("Failed obtaining MagickWand:", err)
+		fail("Failed obtaining MagickWand:", err)
 	}
 
 	imageData, err := ioutil.ReadAll(os.Stdin)
 	if err != nil {
-		log.Fatalln("Failed reading source image:", err)
+		fail("Failed reading source image:", err)
 	}
 
+	// NOT WORKING
+	// strictMode()
+
+	log("MagickReadImageBlob")
 	magickOp("MagickReadImageBlob", C.MagickReadImageBlob(wand, (*C.uchar)(&imageData[0]), C.ulong(len(imageData))))
+	log("MagickResizeImage")
 	magickOp("MagickResizeImage", C.MagickResizeImage(wand, 200, 200, C.LanczosFilter, 0.0))
+	log("MagickWriteImage")
 	magickOp("MagickWriteImage", C.MagickWriteImage(wand, C.CString("-")))
 }
 
 func magickOp(opn string, status C.uint) {
 	switch status {
 	case C.MagickPass:
-		log.Println(opn, "- success")
+		log(opn, "- success")
 	case C.MagickFail:
-		log.Fatalln(opn, "- fail")
+		fail(opn, "- fail")
 	default:
-		log.Fatalln(opn, "- unexpected status:", status)
+		fail(opn, "- unexpected status:", status)
 	}
+}
+
+func log(args ...interface{}) {
+	fmt.Fprintln(os.Stderr, args...)
+}
+
+func fail(args ...interface{}) {
+	fmt.Fprintln(os.Stderr, args...)
+	os.Exit(1)
 }
