@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -166,10 +167,13 @@ func tryResizeImage(ctx context.Context, r io.Reader, width uint, logger *logrus
 }
 
 func startResizeImageCommand(ctx context.Context, imageReader io.Reader, errorWriter io.Writer, width uint) (*exec.Cmd, io.ReadCloser, error) {
-	cmd := exec.CommandContext(ctx, "gm", "convert", "-resize", fmt.Sprintf("%dx", width), "-", "-")
+	cmd := exec.CommandContext(ctx, "gitlab-resize-image")
 	cmd.Stdin = imageReader
 	cmd.Stderr = errorWriter
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Env = []string{
+		"GL_RESIZE_IMAGE_WIDTH=" + strconv.Itoa(int(width)),
+	}
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -189,13 +193,13 @@ func isURL(location string) bool {
 
 func openSourceImage(location string) (io.ReadCloser, int64, error) {
 	if isURL(location) {
-		return openFromUrl(location)
+		return openFromURL(location)
 	}
 
 	return openFromFile(location)
 }
 
-func openFromUrl(location string) (io.ReadCloser, int64, error) {
+func openFromURL(location string) (io.ReadCloser, int64, error) {
 	res, err := httpClient.Get(location)
 	if err != nil {
 		return nil, 0, err

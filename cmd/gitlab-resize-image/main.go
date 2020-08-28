@@ -3,13 +3,14 @@ package main
 /*
 #cgo pkg-config: GraphicsMagickWand
 
+#include <stdio.h>
 #include <wand/magick_wand.h>
 */
 import "C"
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
+	"strconv"
 	"syscall"
 
 	seccomp "github.com/seccomp/libseccomp-golang"
@@ -75,8 +76,14 @@ func enterSeccompMode() {
 func main() {
 	enterSeccompMode()
 
+	widthParam := os.Getenv("GL_RESIZE_IMAGE_WIDTH")
+	requestedWidth, err := strconv.Atoi(widthParam)
+	if err != nil {
+		fail("Failed parsing GL_RESIZE_IMAGE_WIDTH; not a valid integer:", widthParam)
+	}
+
 	args := os.Args
-	_, err := C.InitializeMagick(C.CString(args[0]))
+	_, err = C.InitializeMagick(C.CString(args[0]))
 	if err != nil {
 		log("Failed initializing GraphicsMagick:", err)
 	}
@@ -86,14 +93,20 @@ func main() {
 		fail("Failed obtaining MagickWand:", err)
 	}
 
-	imageData, err := ioutil.ReadAll(os.Stdin)
-	if err != nil {
-		fail("Failed reading source image:", err)
-	}
+	magickOp("MagickReadImageBlob", C.MagickReadImage(wand, C.CString("-")))
+	currentWidth := C.MagickGetImageWidth(wand)
+	currentHeight := C.MagickGetImageHeight(wand)
+	log("WxH", currentWidth, currentHeight)
+	aspect := C.float(currentHeight) / C.float(currentWidth)
+	log("aspect", aspect)
+	newWidth := C.float(requestedWidth)
+	newHeight := aspect * newWidth
+	log("new", newWidth, newHeight)
+	// magickOp("MagickResizeImage", C.MagickSetImageOption(wand, C.CString("jpeg"), C.CString("preserve-settings"), C.CString("true")))
+	magickOp("MagickResizeImage", C.MagickScaleImage(wand, C.ulong(newWidth), C.ulong(newHeight)))
+	magickOp("MagickWriteImage", C.MagickWriteImageFile(wand, C.stdout))
 
-	magickOp("MagickReadImageBlob", C.MagickReadImageBlob(wand, (*C.uchar)(&imageData[0]), C.ulong(len(imageData))))
-	magickOp("MagickResizeImage", C.MagickResizeImage(wand, 200, 200, C.LanczosFilter, 0.0))
-	magickOp("MagickWriteImage", C.MagickWriteImage(wand, C.CString("-")))
+	C.DestroyMagickWand(wand)
 }
 
 func magickOp(opn string, status C.uint) {
