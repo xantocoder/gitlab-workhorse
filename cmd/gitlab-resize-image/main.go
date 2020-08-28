@@ -47,6 +47,7 @@ var allowedSyscalls = []string{
 	"set_tid_address",
 	"pread64",
 	"access",
+	"exit_group",
 }
 
 func enterSeccompMode() {
