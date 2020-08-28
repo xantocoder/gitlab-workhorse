@@ -22,6 +22,7 @@ require (
 	github.com/prometheus/client_golang v1.0.0
 	github.com/rafaeljusto/redigomock v0.0.0-20190202135759-257e089e14a1
 	github.com/sebest/xff v0.0.0-20160910043805-6c115e0ffa35
+	github.com/seccomp/libseccomp-golang v0.9.1
 	github.com/shabbyrobe/gocovmerge v0.0.0-20190829150210-3e036491d500 // indirect
 	github.com/sirupsen/logrus v1.3.0
 	github.com/smartystreets/goconvey v1.6.4

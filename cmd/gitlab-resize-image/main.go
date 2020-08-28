@@ -10,20 +10,62 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"syscall"
 
-	"golang.org/x/sys/unix"
+	seccomp "github.com/seccomp/libseccomp-golang"
 )
 
-// https://github.com/torvalds/linux/blob/master/include/uapi/linux/seccomp.h#L11
-const seccompModeStrict = 1
+var allowedSyscalls = []string{
+	"clone",
+	"rt_sigaction",
+	"mmap",
+	"mprotect",
+	"read",
+	"rt_sigprocmask",
+	"openat",
+	"mlock",
+	"futex",
+	"close",
+	"fstat",
+	"times",
+	"getdents64",
+	"readlinkat",
+	"brk",
+	"sched_getaffinity",
+	"fcntl",
+	"munmap",
+	"prlimit64",
+	"write",
+	"lseek",
+	"sigaltstack",
+	"sysinfo",
+	"rt_sigreturn",
+	"uname",
+	"arch_prctl",
+	"set_robust_list",
+	"gettid",
+	"set_tid_address",
+	"pread64",
+	"access",
+}
 
-func strictMode() {
-	log("Setting strict mode")
-	err := unix.Prctl(unix.PR_SET_SECCOMP, seccompModeStrict, 0, 0, 0)
+func enterSeccompMode() {
+	log("Entering seccomp mode")
+	// create a "reject all" filter that always returns "Operation not permitted"
+	filter, err := seccomp.NewFilter(seccomp.ActErrno.SetReturnCode(int16(syscall.EPERM)))
 	if err != nil {
-		log(err)
+		fail(err)
 	}
-	log("Strict mode set")
+	// allow only syscalls in the given list
+	for _, syscall := range allowedSyscalls {
+		id, err := seccomp.GetSyscallFromName(syscall)
+		if err != nil {
+			fail(err)
+		}
+		filter.AddRule(id, seccomp.ActAllow)
+	}
+	filter.Load()
+	log("Seccomp mode set")
 }
 
 func main() {
@@ -43,8 +85,7 @@ func main() {
 		fail("Failed reading source image:", err)
 	}
 
-	// NOT WORKING
-	// strictMode()
+	enterSeccompMode()
 
 	log("MagickReadImageBlob")
 	magickOp("MagickReadImageBlob", C.MagickReadImageBlob(wand, (*C.uchar)(&imageData[0]), C.ulong(len(imageData))))
