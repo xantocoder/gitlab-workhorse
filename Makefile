@@ -61,8 +61,12 @@ install:	gitlab-workhorse gitlab-zip-cat gitlab-zip-metadata
 .PHONY:	test
 test: $(TARGET_SETUP) prepare-tests
 	$(call message,$@)
-	@go test -tags "$(BUILD_TAGS)" ./...
+	@go test ${TEST_OPTIONS} -tags "$(BUILD_TAGS)" ./...
 	@echo SUCCESS
+
+.PHONY: test-race
+test-race: TEST_OPTIONS = -race
+test-race: test
 
 .PHONY:	coverage
 coverage:	$(TARGET_SETUP) prepare-tests
