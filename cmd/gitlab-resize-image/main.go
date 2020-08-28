@@ -1,10 +1,10 @@
 package main
 
-// #cgo pkg-config: GraphicsMagickWand
-// #include <stdlib.h>
-// #include <stdio.h>
-// #include <string.h>
-// #include <wand/magick_wand.h>
+/*
+#cgo pkg-config: GraphicsMagickWand
+
+#include <wand/magick_wand.h>
+*/
 import "C"
 import (
 	"fmt"
@@ -56,7 +56,6 @@ var allowedSyscalls = []string{
 }
 
 func enterSeccompMode() {
-	log("Entering seccomp mode")
 	// create a "reject all" filter that always returns "Operation not permitted"
 	filter, err := seccomp.NewFilter(seccomp.ActErrno.SetReturnCode(int16(syscall.EPERM)))
 	if err != nil {
@@ -71,10 +70,11 @@ func enterSeccompMode() {
 		filter.AddRule(id, seccomp.ActAllow)
 	}
 	filter.Load()
-	log("Seccomp mode set")
 }
 
 func main() {
+	enterSeccompMode()
+
 	args := os.Args
 	_, err := C.InitializeMagick(C.CString(args[0]))
 	if err != nil {
@@ -91,13 +91,8 @@ func main() {
 		fail("Failed reading source image:", err)
 	}
 
-	enterSeccompMode()
-
-	log("MagickReadImageBlob")
 	magickOp("MagickReadImageBlob", C.MagickReadImageBlob(wand, (*C.uchar)(&imageData[0]), C.ulong(len(imageData))))
-	log("MagickResizeImage")
 	magickOp("MagickResizeImage", C.MagickResizeImage(wand, 200, 200, C.LanczosFilter, 0.0))
-	log("MagickWriteImage")
 	magickOp("MagickWriteImage", C.MagickWriteImage(wand, C.CString("-")))
 }
 
