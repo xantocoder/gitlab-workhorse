@@ -5,6 +5,16 @@ package main
 
 #include <stdio.h>
 #include <wand/magick_wand.h>
+
+void printMagickError(MagickWand *wand) {
+	char *err;
+	ExceptionType errType;
+
+	err = MagickGetException(wand, &errType);
+	fprintf(stderr, "MagickError %d - %s\n", errType, err);
+
+	MagickRelinquishMemory(err);
+}
 */
 import "C"
 import (
@@ -93,24 +103,25 @@ func main() {
 		fail("Failed obtaining MagickWand:", err)
 	}
 
-	magickOp("read_image", C.MagickReadImage(wand, C.CString("-")))
+	magickOp("read_image", wand, C.MagickReadImage(wand, C.CString("-")))
 	currentWidth := C.MagickGetImageWidth(wand)
 	currentHeight := C.MagickGetImageHeight(wand)
 	aspect := C.float(currentHeight) / C.float(currentWidth)
 	newWidth := C.float(requestedWidth)
 	newHeight := aspect * newWidth
-	magickOp("scale_image", C.MagickScaleImage(wand, C.ulong(newWidth), C.ulong(newHeight)))
-	magickOp("write_image", C.MagickWriteImageFile(wand, C.stdout))
+	magickOp("scale_image", wand, C.MagickScaleImage(wand, C.ulong(newWidth), C.ulong(newHeight)))
+	magickOp("write_image", wand, C.MagickWriteImageFile(wand, C.stdout))
 	C.fflush(C.stdout)
 
 	C.DestroyMagickWand(wand)
 }
 
-func magickOp(opn string, status C.uint) {
+func magickOp(opn string, wand *C.MagickWand, status C.uint) {
 	switch status {
 	case C.MagickPass:
 		log(opn, "- success")
 	case C.MagickFail:
+		C.printMagickError(wand)
 		fail(opn, "- fail")
 	default:
 		fail(opn, "- unexpected status:", status)
