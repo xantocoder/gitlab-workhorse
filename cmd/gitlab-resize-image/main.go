@@ -102,29 +102,38 @@ func main() {
 	if err != nil {
 		fail("Failed obtaining MagickWand:", err)
 	}
+	defer C.DestroyMagickWand(wand)
 
-	magickOp("read_image", wand, C.MagickReadImage(wand, C.CString("-")))
-	currentWidth := C.MagickGetImageWidth(wand)
-	currentHeight := C.MagickGetImageHeight(wand)
-	aspect := C.float(currentHeight) / C.float(currentWidth)
-	newWidth := C.float(requestedWidth)
-	newHeight := aspect * newWidth
-	magickOp("scale_image", wand, C.MagickScaleImage(wand, C.ulong(newWidth), C.ulong(newHeight)))
-	magickOp("write_image", wand, C.MagickWriteImageFile(wand, C.stdout))
-	C.fflush(C.stdout)
-
-	C.DestroyMagickWand(wand)
+	runMagick("read_image", wand, readImage)
+	runMagick("scale_image", wand, scaleImage(requestedWidth))
+	runMagick("write_image", wand, writeImage)
 }
 
-func magickOp(opn string, wand *C.MagickWand, status C.uint) {
-	switch status {
-	case C.MagickPass:
-		log(opn, "- success")
-	case C.MagickFail:
+func runMagick(opName string, wand *C.MagickWand, op func(*C.MagickWand) C.uint) {
+	if status := op(wand); status == C.MagickFail {
 		C.printMagickError(wand)
-		fail(opn, "- fail")
-	default:
-		fail(opn, "- unexpected status:", status)
+		fail(opName, "failed")
+	}
+}
+
+func readImage(wand *C.MagickWand) C.uint {
+	return C.MagickReadImage(wand, C.CString("-"))
+}
+
+func writeImage(wand *C.MagickWand) C.uint {
+	defer C.fflush(C.stdout)
+	return C.MagickWriteImageFile(wand, C.stdout)
+}
+
+func scaleImage(requestedWidth int) func(*C.MagickWand) C.uint {
+	return func(wand *C.MagickWand) C.uint {
+		currentWidth := C.MagickGetImageWidth(wand)
+		currentHeight := C.MagickGetImageHeight(wand)
+		aspect := C.float(currentHeight) / C.float(currentWidth)
+		newWidth := C.float(requestedWidth)
+		newHeight := aspect * newWidth
+
+		return C.MagickScaleImage(wand, C.ulong(newWidth), C.ulong(newHeight))
 	}
 }
 
