@@ -85,7 +85,7 @@ func main() {
 	args := os.Args
 	_, err = C.InitializeMagick(C.CString(args[0]))
 	if err != nil {
-		log("Failed initializing GraphicsMagick:", err)
+		fail("Failed initializing GraphicsMagick:", err)
 	}
 
 	wand, err := C.NewMagickWand()
@@ -93,18 +93,15 @@ func main() {
 		fail("Failed obtaining MagickWand:", err)
 	}
 
-	magickOp("MagickReadImageBlob", C.MagickReadImage(wand, C.CString("-")))
+	magickOp("read_image", C.MagickReadImage(wand, C.CString("-")))
 	currentWidth := C.MagickGetImageWidth(wand)
 	currentHeight := C.MagickGetImageHeight(wand)
-	log("WxH", currentWidth, currentHeight)
 	aspect := C.float(currentHeight) / C.float(currentWidth)
-	log("aspect", aspect)
 	newWidth := C.float(requestedWidth)
 	newHeight := aspect * newWidth
-	log("new", newWidth, newHeight)
-	// magickOp("MagickResizeImage", C.MagickSetImageOption(wand, C.CString("jpeg"), C.CString("preserve-settings"), C.CString("true")))
-	magickOp("MagickResizeImage", C.MagickScaleImage(wand, C.ulong(newWidth), C.ulong(newHeight)))
-	magickOp("MagickWriteImage", C.MagickWriteImageFile(wand, C.stdout))
+	magickOp("scale_image", C.MagickScaleImage(wand, C.ulong(newWidth), C.ulong(newHeight)))
+	magickOp("write_image", C.MagickWriteImageFile(wand, C.stdout))
+	C.fflush(C.stdout)
 
 	C.DestroyMagickWand(wand)
 }
