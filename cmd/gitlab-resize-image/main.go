@@ -110,7 +110,7 @@ func main() {
 }
 
 func runMagick(opName string, wand *C.MagickWand, op func(*C.MagickWand) C.uint) {
-	if status := op(wand); status == C.MagickFail {
+	if op(wand) == C.MagickFail {
 		C.printMagickError(wand)
 		fail(opName, "failed")
 	}
