@@ -1,3 +1,3 @@
 package main
 
-func withSeccomp(fn func()) {} // seccomp is available in Linux kernel only
+func withSeccomp(fn func()) { fn() } // seccomp is available in Linux kernel only
