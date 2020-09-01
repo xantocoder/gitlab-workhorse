@@ -3,8 +3,6 @@ package upload_test
 import (
 	"testing"
 
-	"gocloud.dev/blob"
-
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/api"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/config"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/upload"
@@ -22,9 +20,6 @@ func TestPrepareWithS3Config(t *testing.T) {
 		ObjectStorageCredentials: &config.ObjectStorageCredentials{
 			Provider:      "AWS",
 			S3Credentials: creds,
-		},
-		ObjectStorageConfig: config.ObjectStorageConfig{
-			URLMux: new(blob.URLMux),
 		},
 	}
 
@@ -58,5 +53,5 @@ func TestPrepareWithNoConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, opts.UseWorkhorseClient)
 	require.Nil(t, v)
-	require.Nil(t, opts.ObjectStorageConfig.URLMux)
+	require.NotNil(t, opts.ObjectStorageConfig.URLMux)
 }

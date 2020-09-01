@@ -6,6 +6,11 @@ import (
 	"time"
 
 	"gocloud.dev/blob"
+	"gocloud.dev/blob/azureblob"
+
+	"github.com/Azure/azure-storage-blob-go/azblob"
+
+	"gitlab.com/gitlab-org/labkit/log"
 
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/api"
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/config"
@@ -13,6 +18,7 @@ import (
 
 // DefaultObjectStoreTimeout is the timeout for ObjectStore upload operation
 const DefaultObjectStoreTimeout = 4 * time.Hour
+const DefaultAzureServer = "blob.core.windows.net"
 
 type ObjectStorageConfig struct {
 	Provider string
@@ -20,11 +26,12 @@ type ObjectStorageConfig struct {
 	S3Credentials config.S3Credentials
 	S3Config      config.S3Config
 
+	GoCloudConfig    config.GoCloudConfig
+	AzureCredentials config.AzureCredentials
+	AzureConfig      config.AzureConfig
+
 	// GoCloud mux that maps azureblob:// and future URLs (e.g. s3://, gcs://, etc.) to a handler
 	URLMux *blob.URLMux
-
-	// Azure credentials are registered at startup in the GoCloud URLMux, so only the container name is needed
-	GoCloudConfig config.GoCloudConfig
 }
 
 // SaveFileOpts represents all the options available for saving a file to object store
@@ -113,6 +120,7 @@ func GetOpts(apiResponse *api.Response) (*SaveFileOpts, error) {
 		opts.ObjectStorageConfig.Provider = objectStorageParams.Provider
 		opts.ObjectStorageConfig.S3Config = objectStorageParams.S3Config
 		opts.ObjectStorageConfig.GoCloudConfig = objectStorageParams.GoCloudConfig
+		opts.ObjectStorageConfig.AzureConfig = objectStorageParams.AzureConfig
 	}
 
 	// Backwards compatibility to ensure API servers that do not include the
@@ -168,4 +176,39 @@ func (c *ObjectStorageConfig) s3CredentialsValid() bool {
 	}
 
 	return false
+}
+
+func (c *ObjectStorageConfig) RegisterGoCloudURLOpeners() error {
+	c.URLMux = new(blob.URLMux)
+
+	if strings.EqualFold(c.Provider, "AzureRM") && c.AzureCredentials.AccountName != "" && c.AzureCredentials.AccountKey != "" {
+		accountName := azureblob.AccountName(c.AzureCredentials.AccountName)
+		accountKey := azureblob.AccountKey(c.AzureCredentials.AccountKey)
+
+		credential, err := azureblob.NewCredential(accountName, accountKey)
+		if err != nil {
+			log.WithError(err).Error("error creating Azure credentials")
+			return err
+		}
+
+		pipeline := azureblob.NewPipeline(credential, azblob.PipelineOptions{})
+
+		domain := DefaultAzureServer
+		if c.AzureConfig.StorageDomain != "" {
+			domain = c.AzureConfig.StorageDomain
+		}
+
+		azureURLOpener := &azureblob.URLOpener{
+			AccountName: accountName,
+			Pipeline:    pipeline,
+			Options: azureblob.Options{
+				Credential:    credential,
+				StorageDomain: azureblob.StorageDomain(domain),
+			},
+		}
+
+		c.URLMux.RegisterBucket(azureblob.Scheme, azureURLOpener)
+	}
+
+	return nil
 }

@@ -15,9 +15,6 @@ func TestLoadEmptyConfig(t *testing.T) {
 	defer os.Remove(tmpFile.Name())
 
 	require.Nil(t, cfg.ObjectStorageCredentials)
-
-	err := cfg.RegisterGoCloudURLOpeners()
-	require.NoError(t, err)
 }
 
 func TestLoadObjectStorageConfig(t *testing.T) {
@@ -46,7 +43,7 @@ aws_secret_access_key = "gdk-minio"
 	require.Equal(t, expected, *cfg.ObjectStorageCredentials)
 }
 
-func TestRegisterGoCloudURLOpeners(t *testing.T) {
+func TestLoadAzureConfig(t *testing.T) {
 	config := `
 [object_storage]
 provider = "AzureRM"
@@ -69,14 +66,6 @@ azure_storage_access_key = "deadbeef"
 	}
 
 	require.Equal(t, expected, *cfg.ObjectStorageCredentials)
-	require.Nil(t, cfg.ObjectStorageConfig.URLMux)
-
-	err := cfg.RegisterGoCloudURLOpeners()
-	require.NoError(t, err)
-	require.NotNil(t, cfg.ObjectStorageConfig.URLMux)
-
-	require.True(t, cfg.ObjectStorageConfig.URLMux.ValidBucketScheme("azblob"))
-	require.Equal(t, []string{"azblob"}, cfg.ObjectStorageConfig.URLMux.BucketSchemes())
 }
 
 func loadTempConfig(t *testing.T, config string) (f *os.File, cfg *Config) {

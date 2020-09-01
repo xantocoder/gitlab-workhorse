@@ -78,6 +78,7 @@ type MultipartUploadParams struct {
 type ObjectStorageParams struct {
 	Provider      string
 	S3Config      config.S3Config
+	AzureConfig   config.AzureConfig
 	GoCloudConfig config.GoCloudConfig
 }
 

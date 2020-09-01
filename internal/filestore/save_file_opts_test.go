@@ -1,6 +1,7 @@
 package filestore_test
 
 import (
+	"encoding/base64"
 	"testing"
 	"time"
 
@@ -255,8 +256,7 @@ func TestUseWorkhorseClientEnabled(t *testing.T) {
 					Timeout:            10,
 					ID:                 "id",
 					UseWorkhorseClient: test.UseWorkhorseClient,
-					RemoteTempObjectID: test.remoteTempObjectID,
-				},
+					RemoteTempObjectID: test.remoteTempObjectID},
 			}
 			deadline := time.Now().Add(time.Duration(apiResponse.RemoteObject.Timeout) * time.Second)
 			opts, err := filestore.GetOpts(apiResponse)
@@ -327,6 +327,95 @@ func TestGoCloudConfig(t *testing.T) {
 			require.True(t, opts.UseWorkhorseClientEnabled())
 			require.Equal(t, test.valid, opts.ObjectStorageConfig.IsValid())
 			require.False(t, opts.IsLocal())
+		})
+	}
+}
+
+func TestRegisterGoCloudURLOpeners(t *testing.T) {
+	creds := config.AzureCredentials{
+		AccountName: "testaccount",
+		AccountKey:  base64.StdEncoding.EncodeToString([]byte("12345")),
+	}
+
+	azureConfig := api.ObjectStorageParams{
+		Provider: "AzureRM",
+		GoCloudConfig: config.GoCloudConfig{
+			URL: "azblob://test",
+		},
+	}
+
+	azureCustomDomainConfig := api.ObjectStorageParams{
+		Provider: "AzureRM",
+		AzureConfig: config.AzureConfig{
+			StorageDomain: "blob.core.chinacloudapi.cn",
+		},
+		GoCloudConfig: config.GoCloudConfig{
+			URL: "azblob://test",
+		},
+	}
+
+	s3Config := api.ObjectStorageParams{
+		Provider: "AWS",
+		S3Config: config.S3Config{
+			Bucket:        "test-bucket",
+			Region:        "test-region",
+			UseIamProfile: true,
+		},
+	}
+
+	tests := []struct {
+		name          string
+		objectStorage api.ObjectStorageParams
+	}{
+		{
+			name:          "Azure: no storage domain provided",
+			objectStorage: azureConfig,
+		},
+		{
+			name:          "Azure: storage domain provided",
+			objectStorage: azureCustomDomainConfig,
+		},
+		{
+			name:          "S3",
+			objectStorage: s3Config,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			apiResponse := &api.Response{
+				RemoteObject: api.RemoteObject{
+					Timeout:            10,
+					ID:                 "id",
+					UseWorkhorseClient: true,
+					RemoteTempObjectID: "12345",
+					ObjectStorage:      &test.objectStorage,
+				},
+			}
+
+			deadline := time.Now().Add(time.Duration(apiResponse.RemoteObject.Timeout) * time.Second)
+			opts, err := filestore.GetOpts(apiResponse)
+			require.NoError(t, err)
+
+			// Emulate ObjectStoragePreparer
+			opts.ObjectStorageConfig.AzureCredentials = creds
+			err = opts.ObjectStorageConfig.RegisterGoCloudURLOpeners()
+			require.NoError(t, err)
+
+			require.WithinDuration(t, deadline, opts.Deadline, time.Second)
+			require.Equal(t, apiResponse.RemoteObject.ID, opts.RemoteID)
+			require.Equal(t, apiResponse.RemoteObject.UseWorkhorseClient, opts.UseWorkhorseClient)
+			require.True(t, opts.UseWorkhorseClientEnabled())
+
+			mux := opts.ObjectStorageConfig.URLMux
+			require.NotNil(t, mux)
+
+			if test.objectStorage.Provider == "AzureRM" {
+				require.Equal(t, test.objectStorage.AzureConfig, opts.ObjectStorageConfig.AzureConfig)
+				require.True(t, mux.ValidBucketScheme("azblob"))
+			} else {
+				require.False(t, mux.ValidBucketScheme("azblob"))
+			}
 		})
 	}
 }
