@@ -19,53 +19,49 @@ void printMagickError(MagickWand *wand) {
 import "C"
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strconv"
 )
 
 var allowedSyscalls = []string{
-	// memory & resource management
-	"mmap",
-	"munmap",
-	"mprotect",
+	// REQUIRED
 	"brk",
-	"prlimit64",
-	// file & directory management
-	"fstat",
-	"access",
-	"openat",
-	"close",
-	"read",
-	"pread64",
 	"write",
-	"lseek",
-	"getdents64",
-	"readlinkat",
-	"fcntl",
-	// thread management
-	"gettid",
-	"set_tid_address",
-	"mlock",
 	"futex",
-	"sched_getaffinity",
-	"set_robust_list",
-	"arch_prctl",
-	// process & signal management
-	"clone",
-	"times",
-	"exit_group",
-	"rt_sigaction",
 	"rt_sigprocmask",
-	"rt_sigreturn",
 	"sigaltstack",
-	// other
-	"sysinfo",
-	"uname",
+	"exit_group",
+	// OBSERVED
+	// "mmap",
+	// "munmap",
+	// "mprotect",
+	// "prlimit64",
+	// "fstat",
+	// "access",
+	// "openat",
+	// "close",
+	// "read",
+	// "pread64",
+	// "lseek",
+	// "getdents64",
+	// "readlinkat",
+	// "fcntl",
+	// "gettid",
+	// "sched_getaffinity",
+	// "times",
+	// "set_tid_address",
+	// "mlock",
+	// "set_robust_list",
+	// "arch_prctl",
+	// "clone",
+	// "rt_sigaction",
+	// "rt_sigreturn",
+	// "sysinfo",
+	// "uname",
 }
 
 func main() {
-	enterSeccompMode()
-
 	widthParam := os.Getenv("GL_RESIZE_IMAGE_WIDTH")
 	requestedWidth, err := strconv.Atoi(widthParam)
 	if err != nil {
@@ -84,9 +80,16 @@ func main() {
 	}
 	defer C.DestroyMagickWand(wand)
 
-	runMagick("read_image", wand, readImage)
-	runMagick("scale_image", wand, scaleImage(requestedWidth))
-	runMagick("write_image", wand, writeImage)
+	imageData, err := ioutil.ReadAll(os.Stdin)
+	if err != nil {
+		fail("Failed reading image data from stdin", err)
+	}
+
+	withSeccomp(func() {
+		runMagick("read_image", wand, readImage(imageData))
+		runMagick("scale_image", wand, scaleImage(requestedWidth))
+		runMagick("write_image", wand, writeImage)
+	})
 }
 
 func runMagick(opName string, wand *C.MagickWand, op func(*C.MagickWand) C.uint) {
@@ -96,8 +99,10 @@ func runMagick(opName string, wand *C.MagickWand, op func(*C.MagickWand) C.uint)
 	}
 }
 
-func readImage(wand *C.MagickWand) C.uint {
-	return C.MagickReadImage(wand, C.CString("-"))
+func readImage(imageData []byte) func(*C.MagickWand) C.uint {
+	return func(wand *C.MagickWand) C.uint {
+		return C.MagickReadImageBlob(wand, (*C.uchar)(&imageData[0]), C.ulong(len(imageData)))
+	}
 }
 
 func writeImage(wand *C.MagickWand) C.uint {
