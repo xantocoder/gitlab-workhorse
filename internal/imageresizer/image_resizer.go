@@ -173,6 +173,7 @@ func startResizeImageCommand(ctx context.Context, imageReader io.Reader, errorWr
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Env = []string{
 		"GL_RESIZE_IMAGE_WIDTH=" + strconv.Itoa(int(width)),
+		"OMP_NUM_THREADS=0", // disable threading since that causes issues with seccomp
 	}
 
 	stdout, err := cmd.StdoutPipe()
