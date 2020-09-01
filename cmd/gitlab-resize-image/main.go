@@ -24,43 +24,6 @@ import (
 	"strconv"
 )
 
-var allowedSyscalls = []string{
-	// REQUIRED
-	"brk",
-	"write",
-	"futex",
-	"rt_sigprocmask",
-	"sigaltstack",
-	"exit_group",
-	// OBSERVED
-	// "mmap",
-	// "munmap",
-	// "mprotect",
-	// "prlimit64",
-	// "fstat",
-	// "access",
-	// "openat",
-	// "close",
-	// "read",
-	// "pread64",
-	// "lseek",
-	// "getdents64",
-	// "readlinkat",
-	// "fcntl",
-	// "gettid",
-	// "sched_getaffinity",
-	// "times",
-	// "set_tid_address",
-	// "mlock",
-	// "set_robust_list",
-	// "arch_prctl",
-	// "clone",
-	// "rt_sigaction",
-	// "rt_sigreturn",
-	// "sysinfo",
-	// "uname",
-}
-
 func main() {
 	widthParam := os.Getenv("GL_RESIZE_IMAGE_WIDTH")
 	requestedWidth, err := strconv.Atoi(widthParam)
@@ -120,10 +83,6 @@ func scaleImage(requestedWidth int) func(*C.MagickWand) C.uint {
 
 		return C.MagickScaleImage(wand, C.ulong(newWidth), C.ulong(newHeight))
 	}
-}
-
-func log(args ...interface{}) {
-	fmt.Fprintln(os.Stderr, args...)
 }
 
 func fail(args ...interface{}) {
