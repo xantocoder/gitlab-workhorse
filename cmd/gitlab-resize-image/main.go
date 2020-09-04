@@ -1,8 +1,6 @@
 package main
 
 /*
-#cgo pkg-config: GraphicsMagickWand
-
 #include <stdio.h>
 #include <wand/magick_wand.h>
 
