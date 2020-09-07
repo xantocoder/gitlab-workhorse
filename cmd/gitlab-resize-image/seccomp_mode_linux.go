@@ -7,16 +7,21 @@ import (
 )
 
 var allowedSyscalls = []string{
-	// REQUIRED (BUT WORKS ONLY OCCASIONALLY)
-	"write",
+	// REQUIRED
 	"read",
 	"futex",
-	"exit_group",
-	"nanosleep",
+	"write",
 	"mmap",
-	// OBSERVED
+	"exit_group",
+	"mprotect",
+	"clone",
+
+	"sigaltstack",
+	"rt_sigprocmask",
+	// ALL OBSERVED
 	//"rt_sigaction",
 	//"mmap",
+	//"nanosleep",
 	//"clock_gettime",
 	//"futex",
 	//"clone",
