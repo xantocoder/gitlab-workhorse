@@ -17,6 +17,7 @@ pushd "${GM_SRC_DIR}"
 ./configure \
   --prefix="${GM_PREFIX}" \
   --disable-openmp \
+  --with-perl=no \
   --without-xml \
   --without-ttf \
   --without-trio \
@@ -28,7 +29,10 @@ pushd "${GM_SRC_DIR}"
   --without-tiff \
   --without-zstd \
   --without-jbig \
+  --without-jp2 \
   --without-lzma \
+  --without-gslib \
+  --without-fpx \
   --without-threads \
   --without-magick-plus-plus
 
