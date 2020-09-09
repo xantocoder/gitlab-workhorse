@@ -2,7 +2,7 @@
 
 set -xeuo pipefail
 
-GM_PREFIX="${BUILD_PATH}/GraphicsMagick-Prefix"
+GM_PREFIX="${BUILD_PATH}/pref"
 GM_SRC="${BUILD_PATH}/GraphicsMagick-${GM_VERSION}"
 GM_ARCHIVE="GraphicsMagick-${GM_VERSION}.tar.gz"
 

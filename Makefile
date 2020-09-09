@@ -48,7 +48,7 @@ graphics-magick: $(GM_BUILD_DIR)
 
 gitlab-resize-image: $(TARGET_SETUP) graphics-magick $(shell find cmd/gitlab-resize-image/ -name '*.go')
 	$(call message,Building $@)
-	PKG_CONFIG_PATH="$(GM_BUILD_DIR)/GraphicsMagick-Prefix/lib/pkgconfig:$(PKG_CONFIG_PATH)" \
+	PKG_CONFIG_PATH="$(GM_BUILD_DIR)/pref/lib/pkgconfig:$(PKG_CONFIG_PATH)" \
 		$(GOBUILD) -tags "$(BUILD_TAGS) resizer_static_build" -o $(BUILD_DIR)/$@ $(PKG)/cmd/$@
 
 gitlab-zip-cat:	$(TARGET_SETUP) $(shell find cmd/gitlab-zip-cat/ -name '*.go')
