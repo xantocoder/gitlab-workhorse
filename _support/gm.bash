@@ -4,13 +4,13 @@ set -xeuo pipefail
 
 GM_PREFIX="${BUILD_PATH}/GraphicsMagick-Prefix"
 GM_SRC="${BUILD_PATH}/GraphicsMagick-${GM_VERSION}"
-GM_ARCHIVE="GraphicsMagick-${GM_VERSION}.tar.xz"
+GM_ARCHIVE="GraphicsMagick-${GM_VERSION}.tar.gz"
 
 mkdir -p "${BUILD_PATH}"
 
 if [[ ! -d "$GM_SRC" ]]; then
   pushd "${BUILD_PATH}"
-  wget -qO- "https://deac-ams.dl.sourceforge.net/project/graphicsmagick/graphicsmagick/${GM_VERSION}/${GM_ARCHIVE}" | tar Jvx
+  wget -qO- "https://sourceforge.net/projects/graphicsmagick/files/graphicsmagick/${GM_VERSION}/${GM_ARCHIVE}/download" | tar zvx
   popd
 fi
 
