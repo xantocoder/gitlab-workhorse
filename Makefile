@@ -51,7 +51,8 @@ graphics-magick: $(GM_BUILD_DIR)
 gitlab-resize-image: graphics-magick $(shell find cmd/gitlab-resize-image/ -name '*.go')
 	$(call message,Building $@)
 	go clean --cache
-	PKG_CONFIG_PATH="$(GM_BUILD_DIR)/lib/pkgconfig:$(PKG_CONFIG_PATH)" \
+	# We need CGO_LDFLAGS_ALLOW="-D_THREAD_SAFE to compile on OSX
+	CGO_LDFLAGS_ALLOW="-D_THREAD_SAFE" PKG_CONFIG_PATH="$(GM_BUILD_DIR)/lib/pkgconfig:$(PKG_CONFIG_PATH)" \
 		$(GOBUILD) -tags "$(BUILD_TAGS) resizer_static_build" -o $(BUILD_DIR)/$@ $(PKG)/cmd/$@
 
 gitlab-zip-cat:	$(TARGET_SETUP) $(shell find cmd/gitlab-zip-cat/ -name '*.go')
