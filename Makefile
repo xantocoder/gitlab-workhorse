@@ -1,8 +1,8 @@
+PREFIX=/usr/local
 PKG := gitlab.com/gitlab-org/gitlab-workhorse
 BUILD_DIR ?= $(CURDIR)
 TARGET_DIR ?= $(BUILD_DIR)/_build
 VENDOR_DIR := $(BUILD_DIR)/_vendor
-PREFIX ?= $(TARGET_DIR)
 TARGET_SETUP := $(TARGET_DIR)/.ok
 BIN_BUILD_DIR := $(TARGET_DIR)/bin
 COVERAGE_DIR := $(TARGET_DIR)/cover
