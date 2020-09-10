@@ -33,8 +33,8 @@ var SendScaledImage = &resizer{"send-scaled-img:"}
 
 type resizeParams struct {
 	Location string
+	ContentType string
 	Width    uint
-	Format   string
 }
 
 type processCounter struct {
@@ -114,7 +114,7 @@ func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 
 	// Past this point we attempt to rescale the image; if this should fail for any reason, we
 	// simply fail over to rendering out the original image unchanged.
-	imageReader, resizeCmd := tryResizeImage(req.Context(), sourceImageReader, params.Width, logger)
+	imageReader, resizeCmd := tryResizeImage(req.Context(), sourceImageReader, params, logger)
 	defer helper.CleanUpProcessGroup(resizeCmd)
 	imageResizeCompleted.Inc()
 
@@ -129,7 +129,7 @@ func (r *resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 		"bytes_written":     bytesWritten,
 		"duration_s":        time.Since(start).Seconds(),
 		"target_width":      params.Width,
-		"format":            params.Format,
+		"format":            params.ContentType,
 		"original_filesize": filesize,
 	}).Printf("ImageResizer: Success")
 }
@@ -144,11 +144,15 @@ func (r *resizer) unpackParameters(paramsData string) (*resizeParams, error) {
 		return nil, fmt.Errorf("ImageResizer: Location is empty")
 	}
 
+    if params.ContentType == "" {
+        return nil, fmt.Errorf("ImageResizer: Image MIME type must be set")
+    }
+
 	return &params, nil
 }
 
 // Attempts to rescale the given image data, or in case of errors, falls back to the original image.
-func tryResizeImage(ctx context.Context, r io.Reader, width uint, logger *logrus.Entry) (io.Reader, *exec.Cmd) {
+func tryResizeImage(ctx context.Context, r io.Reader, params *resizeParams, logger *logrus.Entry) (io.Reader, *exec.Cmd) {
 	if !numScalerProcs.tryIncrement() {
 		return r, nil
 	}
@@ -158,7 +162,7 @@ func tryResizeImage(ctx context.Context, r io.Reader, width uint, logger *logrus
 		numScalerProcs.decrement()
 	}()
 
-	resizeCmd, resizedImageReader, err := startResizeImageCommand(ctx, r, logger.Writer(), width)
+	resizeCmd, resizedImageReader, err := startResizeImageCommand(ctx, r, logger.Writer(), params)
 	if err != nil {
 		logger.WithError(err).Error("ImageResizer: failed forking into graphicsmagick")
 		return r, nil
@@ -166,13 +170,14 @@ func tryResizeImage(ctx context.Context, r io.Reader, width uint, logger *logrus
 	return resizedImageReader, resizeCmd
 }
 
-func startResizeImageCommand(ctx context.Context, imageReader io.Reader, errorWriter io.Writer, width uint) (*exec.Cmd, io.ReadCloser, error) {
+func startResizeImageCommand(ctx context.Context, imageReader io.Reader, errorWriter io.Writer, params *resizeParams) (*exec.Cmd, io.ReadCloser, error) {
 	cmd := exec.CommandContext(ctx, "gitlab-resize-image")
 	cmd.Stdin = imageReader
 	cmd.Stderr = errorWriter
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Env = []string{
-		"GL_RESIZE_IMAGE_WIDTH=" + strconv.Itoa(int(width)),
+		"GL_RESIZE_IMAGE_WIDTH=" + strconv.Itoa(int(params.Width)),
+		"GL_RESIZE_IMAGE_CONTENT_TYPE=" + params.ContentType,
 		"OMP_NUM_THREADS=1", // disable multi-threading since it causes issues on some platforms
 	}
 
