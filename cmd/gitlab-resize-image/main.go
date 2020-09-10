@@ -24,10 +24,16 @@ import (
 
 func main() {
 	widthParam := os.Getenv("GL_RESIZE_IMAGE_WIDTH")
+	contentTypeParam := os.Getenv("GL_RESIZE_IMAGE_CONTENT_TYPE")
+	gmFileExtension := determineFileExtension(contentTypeParam)
+	if gmFileExtension == "" {
+	   fail("Failed parsing GL_RESIZE_IMAGE_CONTENT_TYPE: unexpected MIME type:", contentTypeParam)
+	}
 	requestedWidth, err := strconv.Atoi(widthParam)
 	if err != nil {
 		fail("Failed parsing GL_RESIZE_IMAGE_WIDTH; not a valid integer:", widthParam)
 	}
+
 
 	args := os.Args
 	_, err = C.InitializeMagick(C.CString(args[0]))
@@ -48,6 +54,7 @@ func main() {
 
 	withSeccomp(func() {
 		runMagick("read_image", wand, readImage(imageData))
+		runMagick("validate_image_content_type", wand, validateImageContentType(gmFileExtension))
 		runMagick("scale_image", wand, scaleImage(requestedWidth))
 		runMagick("write_image", wand, writeImage)
 	})
@@ -66,6 +73,15 @@ func readImage(imageData []byte) func(*C.MagickWand) C.uint {
 	}
 }
 
+func validateImageContentType(contentType string) func(*C.MagickWand) C.uint {
+    return func(wand *C.MagickWand) C.uint {
+      if contentType != C.GoString(C.MagickGetImageFormat(wand)) {
+        fail("Image content did not match the file content type")
+      }
+      return C.MagickPass
+    }
+}
+
 func writeImage(wand *C.MagickWand) C.uint {
 	defer C.fflush(C.stdout)
 	return C.MagickWriteImageFile(wand, C.stdout)
@@ -80,6 +96,17 @@ func scaleImage(requestedWidth int) func(*C.MagickWand) C.uint {
 		newHeight := aspect * newWidth
 
 		return C.MagickScaleImage(wand, C.ulong(newWidth), C.ulong(newHeight))
+	}
+}
+
+func determineFileExtension(contentType string) string {
+	switch contentType {
+	case "image/png":
+		return "PNG"
+	case "image/jpeg":
+		return "JPG"
+	default:
+		return ""
 	}
 }
 
