@@ -52,6 +52,7 @@ gitlab-resize-image: graphics-magick $(shell find cmd/gitlab-resize-image/ -name
 	$(call message,Building $@)
 	go clean --cache
 	# We need CGO_LDFLAGS_ALLOW="-D_THREAD_SAFE to compile on OSX
+	# See https://github.com/golang/go/issues/25493
 	CGO_LDFLAGS_ALLOW="-D_THREAD_SAFE" PKG_CONFIG_PATH="$(GM_BUILD_DIR)/lib/pkgconfig:$(PKG_CONFIG_PATH)" \
 		$(GOBUILD) -tags "$(BUILD_TAGS) resizer_static_build" -o $(BUILD_DIR)/$@ $(PKG)/cmd/$@
 
