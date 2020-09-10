@@ -63,7 +63,7 @@ code_navigation:
   image: golang:latest
   allow_failure: true
   script:
-    - apt-get update && apt-get -y install libseccomp-dev
+    - apt-get update && apt-get -y install libgraphicsmagick1-dev libseccomp-dev
     - go get github.com/sourcegraph/lsif-go/cmd/lsif-go
     - lsif-go
   artifacts:
