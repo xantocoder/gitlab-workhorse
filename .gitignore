@@ -6,5 +6,6 @@ testdata/public
 /gitlab-zip-cat
 /gitlab-zip-metadata
 /_build
+/_vendor
 coverage.html
 /*.toml

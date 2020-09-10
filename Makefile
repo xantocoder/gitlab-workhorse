@@ -1,6 +1,7 @@
 PKG := gitlab.com/gitlab-org/gitlab-workhorse
 BUILD_DIR ?= $(CURDIR)
 TARGET_DIR ?= $(BUILD_DIR)/_build
+VENDOR_DIR := $(BUILD_DIR)/_vendor
 PREFIX ?= $(TARGET_DIR)
 TARGET_SETUP := $(TARGET_DIR)/.ok
 BIN_BUILD_DIR := $(TARGET_DIR)/bin
@@ -10,7 +11,7 @@ ifeq ($(strip $(VERSION_STRING)),)
 VERSION_STRING := v$(shell cat VERSION)
 endif
 GM_VERSION := 1.3.35
-GM_SRC_DIR := $(TARGET_DIR)/GraphicsMagick-$(GM_VERSION)
+GM_BUILD_DIR := $(VENDOR_DIR)/gm-$(GM_VERSION)
 BUILD_TIME := $(shell date -u +%Y%m%d.%H%M%S)
 GOBUILD := go build -ldflags "-X main.Version=$(VERSION_STRING) -X main.BuildTime=$(BUILD_TIME)"
 EXE_ALL := gitlab-resize-image gitlab-zip-cat gitlab-zip-metadata gitlab-workhorse
@@ -41,15 +42,16 @@ $(TARGET_SETUP):
 	mkdir -p "$(TARGET_DIR)"
 	touch "$(TARGET_SETUP)"
 
-$(GM_SRC_DIR): $(TARGET_SETUP)
-	GM_VERSION=$(GM_VERSION) GM_PREFIX=$(PREFIX) GM_SRC_DIR=$(GM_SRC_DIR) BUILD_DIR=$(TARGET_DIR) _support/gm.bash
+$(GM_BUILD_DIR):
+	mkdir -p $(GM_BUILD_DIR)
+	GM_VERSION=$(GM_VERSION) GM_BUILD_DIR=$(GM_BUILD_DIR) _support/gm.bash
 
-graphics-magick: $(GM_SRC_DIR)
+graphics-magick: $(GM_BUILD_DIR)
 
 gitlab-resize-image: graphics-magick $(shell find cmd/gitlab-resize-image/ -name '*.go')
 	$(call message,Building $@)
 	go clean --cache
-	PKG_CONFIG_PATH="$(PREFIX)/lib/pkgconfig:$(PKG_CONFIG_PATH)" \
+	PKG_CONFIG_PATH="$(GM_BUILD_DIR)/lib/pkgconfig:$(PKG_CONFIG_PATH)" \
 		$(GOBUILD) -tags "$(BUILD_TAGS) resizer_static_build" -o $(BUILD_DIR)/$@ $(PKG)/cmd/$@
 
 gitlab-zip-cat:	$(TARGET_SETUP) $(shell find cmd/gitlab-zip-cat/ -name '*.go')
@@ -87,6 +89,7 @@ coverage:	$(TARGET_SETUP) prepare-tests
 clean:	clean-workhorse clean-build
 	$(call message,$@)
 	rm -rf testdata/data testdata/scratch
+	rm -rf $(VENDOR_DIR)
 
 .PHONY:	clean-workhorse
 clean-workhorse:

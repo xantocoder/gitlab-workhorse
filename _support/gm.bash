@@ -3,19 +3,20 @@
 set -xeuo pipefail
 
 GM_ARCHIVE="GraphicsMagick-${GM_VERSION}.tar.gz"
+GM_SRC_DIR="${GM_BUILD_DIR}/GraphicsMagick-${GM_VERSION}"
 
-if [[ ! -d "${GM_PREFIX}" ]]; then
-  echo "Cannot install GraphicsMagick into ${GM_PREFIX}; directory does not exist"
+if [[ ! -d "${GM_BUILD_DIR}" ]]; then
+  echo "Cannot install GraphicsMagick into ${GM_BUILD_DIR}; directory does not exist"
   exit 1
 fi
 
-pushd "${BUILD_DIR}"
+pushd "${GM_BUILD_DIR}"
 wget -qO- "https://sourceforge.net/projects/graphicsmagick/files/graphicsmagick/${GM_VERSION}/${GM_ARCHIVE}/download" | tar zvx
 popd
 
 pushd "${GM_SRC_DIR}"
 ./configure \
-  --prefix="${GM_PREFIX}" \
+  --prefix="${GM_BUILD_DIR}" \
   --disable-openmp \
   --with-perl=no \
   --without-xml \
