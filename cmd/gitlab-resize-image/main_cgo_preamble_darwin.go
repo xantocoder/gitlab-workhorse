@@ -1,5 +1,3 @@
-// +build resizer_static_build
-
 package main
 
 /*

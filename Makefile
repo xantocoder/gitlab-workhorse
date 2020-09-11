@@ -54,7 +54,7 @@ gitlab-resize-image: graphics-magick $(shell find cmd/gitlab-resize-image/ -name
 	# We need CGO_LDFLAGS_ALLOW="-D_THREAD_SAFE to compile on OSX
 	# See https://github.com/golang/go/issues/25493
 	CGO_LDFLAGS_ALLOW="-D_THREAD_SAFE" PKG_CONFIG_PATH="$(GM_BUILD_DIR)/lib/pkgconfig:$(PKG_CONFIG_PATH)" \
-		$(GOBUILD) -tags "$(BUILD_TAGS) resizer_static_build" -o $(BUILD_DIR)/$@ $(PKG)/cmd/$@
+		$(GOBUILD) -tags "$(BUILD_TAGS)" -o $(BUILD_DIR)/$@ $(PKG)/cmd/$@
 
 gitlab-zip-cat:	$(TARGET_SETUP) $(shell find cmd/gitlab-zip-cat/ -name '*.go')
 	$(call message,Building $@)
@@ -138,9 +138,9 @@ lint: $(TARGET_SETUP)
 	@_support/lint.sh ./...
 
 .PHONY: vet
-vet: $(TARGET_SETUP) 
+vet: $(TARGET_SETUP) $(GM_BUILD_DIR)
 	$(call message,Verify: $@)
-	@go vet ./...
+	@PKG_CONFIG_PATH="$(GM_BUILD_DIR)/lib/pkgconfig:$(PKG_CONFIG_PATH)" go vet ./...
 
 .PHONY: detect-context
 detect-context: $(TARGET_SETUP)
