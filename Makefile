@@ -10,6 +10,8 @@ VERSION_STRING := $(shell git describe)
 ifeq ($(strip $(VERSION_STRING)),)
 VERSION_STRING := v$(shell cat VERSION)
 endif
+SCMP_VERSION := 2.4.4
+SCMP_BUILD_DIR := $(VENDOR_DIR)/seccomp-$(SCMP_VERSION)
 GM_VERSION := 1.3.35
 GM_BUILD_DIR := $(VENDOR_DIR)/gm-$(GM_VERSION)
 BUILD_TIME := $(shell date -u +%Y%m%d.%H%M%S)
@@ -42,18 +44,24 @@ $(TARGET_SETUP):
 	mkdir -p "$(TARGET_DIR)"
 	touch "$(TARGET_SETUP)"
 
+$(SCMP_BUILD_DIR):
+	mkdir -p $(SCMP_BUILD_DIR)
+	SCMP_VERSION=$(SCMP_VERSION) SCMP_BUILD_DIR=$(SCMP_BUILD_DIR) _support/libseccomp.bash
+
 $(GM_BUILD_DIR):
 	mkdir -p $(GM_BUILD_DIR)
 	GM_VERSION=$(GM_VERSION) GM_BUILD_DIR=$(GM_BUILD_DIR) _support/gm.bash
 
+seccomp: $(SCMP_BUILD_DIR)
+
 graphics-magick: $(GM_BUILD_DIR)
 
-gitlab-resize-image: graphics-magick $(shell find cmd/gitlab-resize-image/ -name '*.go')
+gitlab-resize-image: seccomp graphics-magick $(shell find cmd/gitlab-resize-image/ -name '*.go')
 	$(call message,Building $@)
 	go clean --cache
 	# We need CGO_LDFLAGS_ALLOW="-D_THREAD_SAFE to compile on OSX
 	# See https://github.com/golang/go/issues/25493
-	CGO_LDFLAGS_ALLOW="-D_THREAD_SAFE" PKG_CONFIG_PATH="$(GM_BUILD_DIR)/lib/pkgconfig:$(PKG_CONFIG_PATH)" \
+	CGO_LDFLAGS_ALLOW="-D_THREAD_SAFE" PKG_CONFIG_PATH="$(SCMP_BUILD_DIR)/lib/pkgconfig:$(GM_BUILD_DIR)/lib/pkgconfig:$(PKG_CONFIG_PATH)" \
 		$(GOBUILD) -tags "$(BUILD_TAGS) resizer_static_build" -o $(BUILD_DIR)/$@ $(PKG)/cmd/$@
 
 gitlab-zip-cat:	$(TARGET_SETUP) $(shell find cmd/gitlab-zip-cat/ -name '*.go')

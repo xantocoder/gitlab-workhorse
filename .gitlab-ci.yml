@@ -20,7 +20,7 @@ variables:
 
 verify:
   script:
-  - apt-get update && apt-get -y install libgraphicsmagick1-dev libseccomp-dev
+  - apt-get update && apt-get -y install libgraphicsmagick1-dev
   - make verify
 
 .test:
@@ -33,7 +33,7 @@ verify:
     GITALY_ADDRESS: "tcp://gitaly:8075"
   script:
   - go version
-  - apt-get update && apt-get -y install libimage-exiftool-perl libgraphicsmagick1-dev libseccomp-dev
+  - apt-get update && apt-get -y install libimage-exiftool-perl libgraphicsmagick1-dev
   - make test
 
 test using go 1.13:
@@ -63,7 +63,7 @@ code_navigation:
   image: golang:latest
   allow_failure: true
   script:
-    - apt-get update && apt-get -y install libgraphicsmagick1-dev libseccomp-dev
+    - apt-get update && apt-get -y install libgraphicsmagick1-dev
     - go get github.com/sourcegraph/lsif-go/cmd/lsif-go
     - lsif-go
   artifacts:
