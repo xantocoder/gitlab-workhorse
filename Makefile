@@ -140,7 +140,7 @@ lint: $(TARGET_SETUP)
 .PHONY: vet
 vet: $(TARGET_SETUP) $(GM_BUILD_DIR)
 	$(call message,Verify: $@)
-	@PKG_CONFIG_PATH="$(GM_BUILD_DIR)/lib/pkgconfig:$(PKG_CONFIG_PATH)" go vet ./...
+	@ PKG_CONFIG_PATH="$(GM_BUILD_DIR)/lib/pkgconfig:$(PKG_CONFIG_PATH)" go vet ./...
 
 .PHONY: detect-context
 detect-context: $(TARGET_SETUP)
@@ -159,7 +159,7 @@ check-formatting: $(TARGET_SETUP) install-goimports
 staticcheck: $(TARGET_SETUP)
 	$(call message,Verify: $@)
 	go install honnef.co/go/tools/cmd/staticcheck
-	@ $(GOBIN)/staticcheck -go $(MINIMUM_SUPPORTED_GO_VERSION) ./...
+	@ PKG_CONFIG_PATH="$(GM_BUILD_DIR)/lib/pkgconfig:$(PKG_CONFIG_PATH)" $(GOBIN)/staticcheck -go $(MINIMUM_SUPPORTED_GO_VERSION) ./...
 
 # In addition to fixing imports, goimports also formats your code in the same style as gofmt
 # so it can be used as a replacement.
