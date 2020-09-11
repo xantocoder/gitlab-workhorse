@@ -34,6 +34,7 @@ pushd "${GM_SRC_DIR}"
   --without-lzma \
   --without-gslib \
   --without-fpx \
+  --without-webp \
   --without-threads \
   --without-magick-plus-plus
 
