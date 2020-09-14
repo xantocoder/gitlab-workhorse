@@ -373,7 +373,7 @@ func TestImageResizing(t *testing.T) {
 	imageLocation := `testdata/image.png`
 	requestedWidth := 40
 	imageFormat := "image/png"
-    jsonParams := fmt.Sprintf(`{"Location":"%s","Width":%d, "ContentType":"%s"}`, imageLocation, requestedWidth, imageFormat)
+	jsonParams := fmt.Sprintf(`{"Location":"%s","Width":%d, "ContentType":"%s"}`, imageLocation, requestedWidth, imageFormat)
 	resourcePath := "/uploads/-/system/user/avatar/123/avatar.png?width=40"
 
 	resp, body, err := doSendDataRequest(resourcePath, "send-scaled-img", jsonParams)
