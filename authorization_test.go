@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"strings"
 	"testing"
+	"time"
 
 	"gitlab.com/gitlab-org/labkit/correlation"
 
@@ -128,4 +130,32 @@ func TestPreAuthorizeJWT(t *testing.T) {
 		regexp.MustCompile(`/authorize\z`),
 		"",
 		200, 201)
+}
+
+func TestPreAuthorizeExpect100Continue(t *testing.T) {
+	ts := testAuthServer(t, nil, nil, 401, "Unauthorized")
+	defer ts.Close()
+
+	ws := startWorkhorseServer(ts.URL)
+	defer ws.Close()
+
+	req, err := http.NewRequest("POST", ws.URL+"/some/project.git/git-receive-pack", strings.NewReader("0\r\n\r\n"))
+	require.NoError(t, err)
+
+	req.Header.Add("Content-Type", "application/x-git-receive-pack-request")
+	req.Header.Add("Expect", "100-continue")
+	req.Header.Add("Transfer-Encoding", "chunked")
+
+	transport := &http.Transport{ExpectContinueTimeout: 10 * time.Second}
+	client := &http.Client{Transport: transport}
+	start := time.Now()
+
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	elapsed := time.Since(start)
+
+	require.Less(t, elapsed.Seconds(), 10.0)
+	require.Equal(t, 401, resp.StatusCode)
 }
