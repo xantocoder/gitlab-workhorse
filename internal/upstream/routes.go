@@ -169,7 +169,7 @@ func (u *upstream) configureRoutes() {
 		u.RoundTripper,
 	)
 
-	static := &staticpages.Static{DocumentRoot: u.DocumentRoot}
+	static := &staticpages.Static{DocumentRoot: u.DocumentRoot, AltDocumentRoot: u.AltDocumentRoot}
 	proxy := buildProxy(u.Backend, u.Version, u.RoundTripper, u.Config)
 	cableProxy := proxypkg.NewProxy(u.CableBackend, u.Version, u.CableRoundTripper)
 

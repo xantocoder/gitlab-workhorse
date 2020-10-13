@@ -1,5 +1,6 @@
 package staticpages
 
 type Static struct {
-	DocumentRoot string
+	DocumentRoot    string
+	AltDocumentRoot string
 }

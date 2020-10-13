@@ -91,6 +91,7 @@ type Config struct {
 	CableBackend             *url.URL                  `toml:"-"`
 	Version                  string                    `toml:"-"`
 	DocumentRoot             string                    `toml:"-"`
+	AltDocumentRoot          string                    `toml:"alt_document_root"`
 	DevelopmentMode          bool                      `toml:"-"`
 	Socket                   string                    `toml:"-"`
 	CableSocket              string                    `toml:"-"`
