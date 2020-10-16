@@ -124,7 +124,7 @@ func main() {
 		go func() {
 			err := http.ListenAndServe(*pprofListenAddr, nil)
 			if err != nil {
-				log.WithError(err).Error("Failed to start pprof listener")
+				log.WithError(err).Fatal("Failed to start pprof listener")
 			}
 		}()
 	}

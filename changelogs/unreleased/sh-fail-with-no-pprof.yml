@@ -1,0 +1,5 @@
+---
+title: Fail if no pprof listen address is specified
+merge_request: 632
+author:
+type: fixed
