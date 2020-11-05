@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/config"
 
@@ -56,59 +57,57 @@ func TestUnpackParametersReturnsErrorWhenContentTypeBlank(t *testing.T) {
 func TestTryResizeImageSuccess(t *testing.T) {
 	r := Resizer{}
 	inParams := resizeParams{Location: "/path/to/img", Width: 64, ContentType: "image/png"}
-	inFile := testImage(t)
+	inFile := imageFile{testImage(t), int64(config.DefaultImageResizerConfig.MaxFilesize), time.Now()}
 	req, err := http.NewRequest("GET", "/foo", nil)
 	require.NoError(t, err)
 
 	reader, cmd, err := r.tryResizeImage(
 		req,
-		inFile,
+		&inFile,
 		os.Stderr,
 		&inParams,
-		int64(config.DefaultImageResizerConfig.MaxFilesize),
 		config.DefaultImageResizerConfig,
 	)
 
 	require.NoError(t, err)
 	require.NotNil(t, cmd)
 	require.NotNil(t, reader)
-	require.NotEqual(t, inFile, reader)
+	require.NotEqual(t, inFile.reader, reader)
 }
 
 func TestTryResizeImageSkipsResizeWhenSourceImageTooLarge(t *testing.T) {
 	r := Resizer{}
 	inParams := resizeParams{Location: "/path/to/img", Width: 64, ContentType: "image/png"}
-	inFile := testImage(t)
+	inFile := imageFile{testImage(t), int64(config.DefaultImageResizerConfig.MaxFilesize) + 1, time.Now()}
 	req, err := http.NewRequest("GET", "/foo", nil)
 	require.NoError(t, err)
 
 	reader, cmd, err := r.tryResizeImage(
 		req,
-		inFile,
+		&inFile,
 		os.Stderr,
 		&inParams,
-		int64(config.DefaultImageResizerConfig.MaxFilesize)+1,
 		config.DefaultImageResizerConfig,
 	)
 
 	require.Error(t, err)
 	require.Nil(t, cmd)
-	require.Equal(t, inFile, reader, "Expected output streams to match")
+	require.Equal(t, inFile.reader, reader, "Expected output streams to match")
 }
 
 func TestTryResizeImageFailsWhenContentTypeNotMatchingFileContents(t *testing.T) {
 	r := Resizer{}
 	inParams := resizeParams{Location: "/path/to/img", Width: 64, ContentType: "image/jpeg"}
-	inFile := testImage(t) // this is a PNG file; the image scaler should fail fast in this case
+	// this is a PNG file; the image scaler should fail fast in this case
+	inFile := imageFile{testImage(t), int64(config.DefaultImageResizerConfig.MaxFilesize), time.Now()}
 	req, err := http.NewRequest("GET", "/foo", nil)
 	require.NoError(t, err)
 
 	_, cmd, err := r.tryResizeImage(
 		req,
-		inFile,
+		&inFile,
 		os.Stderr,
 		&inParams,
-		int64(config.DefaultImageResizerConfig.MaxFilesize),
 		config.DefaultImageResizerConfig,
 	)
 
