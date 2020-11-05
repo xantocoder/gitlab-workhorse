@@ -173,24 +173,28 @@ func (r *Resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 	}
 	defer sourceImageReader.Close()
 
-	logFields := func(bytesWritten int64) *log.Fields {
+	logFields := func(bytesWritten int64, resizeDuration float64) *log.Fields {
 		return &log.Fields{
 			"bytes_written":     bytesWritten,
 			"duration_s":        time.Since(start).Seconds(),
+			"resize_duration_s": resizeDuration, // excluding the data transfer, unlike `duration_s`
 			"target_width":      params.Width,
 			"content_type":      params.ContentType,
 			"original_filesize": fileSize,
 		}
 	}
 
+	resizeStart := time.Now()
 	// We first attempt to rescale the image; if this should fail for any reason, imageReader
 	// will point to the original image, i.e. we render it unchanged.
 	imageReader, resizeCmd, err := r.tryResizeImage(req, sourceImageReader, logger.Writer(), params, fileSize, r.Config.ImageResizerConfig)
 	if err != nil {
 		// Something failed, but we can still write out the original image, so don't return early.
-		helper.LogErrorWithFields(req, err, *logFields(0))
+		helper.LogErrorWithFields(req, err, *logFields(0, 0))
 	}
 	defer helper.CleanUpProcessGroup(resizeCmd)
+
+	resizeDuration := time.Since(resizeStart).Seconds()
 
 	w.Header().Del("Content-Length")
 	bytesWritten, err := serveImage(imageReader, w, resizeCmd)
@@ -201,7 +205,7 @@ func (r *Resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 		if bytesWritten <= 0 {
 			helper.Fail500(w, req, err)
 		} else {
-			helper.LogErrorWithFields(req, err, *logFields(bytesWritten))
+			helper.LogErrorWithFields(req, err, *logFields(bytesWritten, resizeDuration))
 		}
 		return
 	}
@@ -209,14 +213,14 @@ func (r *Resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 	// This means we served the original image because rescaling failed; this is a soft failure
 	if resizeCmd == nil {
 		status = statusScalingFailure
-		logger.WithFields(*logFields(bytesWritten)).Printf("ImageResizer: Served original")
+		logger.WithFields(*logFields(bytesWritten, 0)).Printf("ImageResizer: Served original")
 		return
 	}
 
 	widthLabelVal := strconv.Itoa(int(params.Width))
 	imageResizeDurations.WithLabelValues(params.ContentType, widthLabelVal).Observe(time.Since(start).Seconds())
 
-	logger.WithFields(*logFields(bytesWritten)).Printf("ImageResizer: Success")
+	logger.WithFields(*logFields(bytesWritten, resizeDuration)).Printf("ImageResizer: Success")
 
 	status = statusSuccess
 }
