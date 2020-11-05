@@ -82,8 +82,6 @@ var httpClient = &http.Client{
 	Transport: httpTransport,
 }
 
-var unixEpochTime = time.Unix(0, 0)
-
 const (
 	namespace = "gitlab_workhorse"
 	subsystem = "image_resize"
@@ -397,16 +395,12 @@ func checkNotModified(r *http.Request, modtime time.Time) bool {
 	}
 	// The Last-Modified header truncates sub-second precision so
 	// the modtime needs to be truncated too.
-	modtime = modtime.Truncate(time.Second)
-	if modtime.Before(t) || modtime.Equal(t) {
-		return true
-	}
-	return false
+	return !modtime.Truncate(time.Second).After(t)
 }
 
-// isZeroTime reports whether t is obviously unspecified (either zero or Unix()=0).
+// isZeroTime reports whether t is obviously unspecified (either zero or Unix epoch time).
 func isZeroTime(t time.Time) bool {
-	return t.IsZero() || t.Equal(unixEpochTime)
+	return t.IsZero() || t.Equal(time.Unix(0, 0))
 }
 
 func setLastModified(w http.ResponseWriter, modtime time.Time) {
@@ -419,8 +413,5 @@ func writeNotModified(w http.ResponseWriter) {
 	h := w.Header()
 	delete(h, "Content-Type")
 	delete(h, "Content-Length")
-	if h.Get("Etag") != "" {
-		delete(h, "Last-Modified")
-	}
 	w.WriteHeader(http.StatusNotModified)
 }
