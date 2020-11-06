@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"testing"
@@ -87,25 +89,40 @@ func TestTryResizeImageSkipsResizeWhenSourceImageTooLarge(t *testing.T) {
 	require.Equal(t, inFile, reader, "Expected output streams to match")
 }
 
-//func TestTryResizeImageFailsWhenContentTypeNotMatchingFileContents(t *testing.T) {
-//	r := Resizer{}
-//	inParams := resizeParams{Location: "/path/to/img", Width: 64, ContentType: "image/jpeg"}
-//	inFile := testImage(t) // this is a PNG file; the image scaler should fail fast in this case
-//	req, err := http.NewRequest("GET", "/foo", nil)
-//	require.NoError(t, err)
-//
-//	_, cmd, err := r.tryResizeImage(
-//		req,
-//		inFile,
-//		os.Stderr,
-//		&inParams,
-//		int64(config.DefaultImageResizerConfig.MaxFilesize),
-//		config.DefaultImageResizerConfig,
-//	)
-//
-//	require.NoError(t, err)
-//	require.Error(t, cmd.Wait(), "Expected to fail due to content-type mismatch")
-//}
+func TestTryResizeImageFailsWhenImageFormatNotAllowed(t *testing.T) {
+	r := Resizer{}
+	inParams := resizeParams{Location: "/path/to/img", Width: 64}
+
+	// create an SVG but save it as PNG
+	tempFile, err := ioutil.TempFile("", "uploads")
+	require.NoError(t, err)
+	defer tempFile.Close()
+	defer os.Remove(tempFile.Name())
+
+	svg_image, err := os.Open("../../testdata/image.svg")
+	require.NoError(t, err)
+	defer svg_image.Close()
+
+	_, err = io.Copy(tempFile, svg_image)
+	require.NoError(t, err)
+
+	inFile := svg_image // we expect the scale to detect fake PNG and fail
+
+	req, err := http.NewRequest("GET", "/foo", nil)
+	require.NoError(t, err)
+
+	_, cmd, err := r.tryResizeImage(
+		req,
+		inFile,
+		os.Stderr,
+		&inParams,
+		int64(config.DefaultImageResizerConfig.MaxFilesize),
+		config.DefaultImageResizerConfig,
+	)
+
+	require.NoError(t, err)
+	require.Error(t, cmd.Wait(), "Expected to fail due to image format not allowed")
+}
 
 func TestServeImage(t *testing.T) {
 	inFile := testImage(t)
