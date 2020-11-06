@@ -93,7 +93,7 @@ func TestTryResizeImageFailsWhenImageFormatNotAllowed(t *testing.T) {
 	r := Resizer{}
 	inParams := resizeParams{Location: "/path/to/img", Width: 64}
 
-	// create an SVG but save it as PNG
+	// create SVG but save it as PNG
 	tempFile, err := ioutil.TempFile("", "image.*.png")
 	require.NoError(t, err)
 	defer tempFile.Close()
@@ -106,7 +106,7 @@ func TestTryResizeImageFailsWhenImageFormatNotAllowed(t *testing.T) {
 	_, err = io.Copy(tempFile, svg_image)
 	require.NoError(t, err)
 
-	inFile := tempFile // we expect the scale to detect fake PNG and fail
+	inFile := tempFile // we expect the scaler to detect fake PNG and fail
 	req, err := http.NewRequest("GET", "/foo", nil)
 	require.NoError(t, err)
 
@@ -127,7 +127,7 @@ func TestTryResizeImageSuccessWhenWrongExtensionButAllowedFormat(t *testing.T) {
 	r := Resizer{}
 	inParams := resizeParams{Location: "/path/to/img", Width: 64}
 
-	// create an PNG but save it as JPEG
+	// create PNG but save it as JPEG
 	tempFile, err := ioutil.TempFile("", "image.*.jpeg")
 	require.NoError(t, err)
 	defer tempFile.Close()
