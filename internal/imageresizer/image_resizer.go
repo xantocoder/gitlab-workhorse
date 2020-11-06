@@ -182,13 +182,6 @@ func (r *Resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 	}
 	defer imageFile.reader.Close()
 
-	setLastModified(w, imageFile.lastModified)
-	// If the original file has not changed, then any cached resized versions have not changed either.
-	if checkNotModified(req, imageFile.lastModified) {
-		writeNotModified(w)
-		return
-	}
-
 	logFields := func(bytesWritten int64) *log.Fields {
 		return &log.Fields{
 			"bytes_written":     bytesWritten,
@@ -197,6 +190,14 @@ func (r *Resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 			"content_type":      params.ContentType,
 			"original_filesize": imageFile.contentLength,
 		}
+	}
+
+	setLastModified(w, imageFile.lastModified)
+	// If the original file has not changed, then any cached resized versions have not changed either.
+	if checkNotModified(req, imageFile.lastModified) {
+		logger.WithFields(*logFields(0)).Printf("ImageResizer: Use cached image")
+		writeNotModified(w)
+		return
 	}
 
 	// We first attempt to rescale the image; if this should fail for any reason, imageReader
