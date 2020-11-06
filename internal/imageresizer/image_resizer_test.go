@@ -27,7 +27,7 @@ func TestMain(m *testing.M) {
 
 func TestUnpackParametersReturnsParamsInstanceForValidInput(t *testing.T) {
 	r := Resizer{}
-	inParams := resizeParams{Location: "/path/to/img", Width: 64, ContentType: "image/png"}
+	inParams := resizeParams{Location: "/path/to/img", Width: 64}
 
 	outParams, err := r.unpackParameters(encodeParams(t, &inParams))
 
@@ -37,25 +37,16 @@ func TestUnpackParametersReturnsParamsInstanceForValidInput(t *testing.T) {
 
 func TestUnpackParametersReturnsErrorWhenLocationBlank(t *testing.T) {
 	r := Resizer{}
-	inParams := resizeParams{Location: "", Width: 64, ContentType: "image/jpg"}
+	inParams := resizeParams{Location: "", Width: 64}
 
 	_, err := r.unpackParameters(encodeParams(t, &inParams))
 
 	require.Error(t, err, "expected error when Location is blank")
 }
 
-func TestUnpackParametersReturnsErrorWhenContentTypeBlank(t *testing.T) {
-	r := Resizer{}
-	inParams := resizeParams{Location: "/path/to/img", Width: 64, ContentType: ""}
-
-	_, err := r.unpackParameters(encodeParams(t, &inParams))
-
-	require.Error(t, err, "expected error when ContentType is blank")
-}
-
 func TestTryResizeImageSuccess(t *testing.T) {
 	r := Resizer{}
-	inParams := resizeParams{Location: "/path/to/img", Width: 64, ContentType: "image/png"}
+	inParams := resizeParams{Location: "/path/to/img", Width: 64}
 	inFile := testImage(t)
 	req, err := http.NewRequest("GET", "/foo", nil)
 	require.NoError(t, err)
@@ -77,7 +68,7 @@ func TestTryResizeImageSuccess(t *testing.T) {
 
 func TestTryResizeImageSkipsResizeWhenSourceImageTooLarge(t *testing.T) {
 	r := Resizer{}
-	inParams := resizeParams{Location: "/path/to/img", Width: 64, ContentType: "image/png"}
+	inParams := resizeParams{Location: "/path/to/img", Width: 64}
 	inFile := testImage(t)
 	req, err := http.NewRequest("GET", "/foo", nil)
 	require.NoError(t, err)
@@ -96,25 +87,25 @@ func TestTryResizeImageSkipsResizeWhenSourceImageTooLarge(t *testing.T) {
 	require.Equal(t, inFile, reader, "Expected output streams to match")
 }
 
-func TestTryResizeImageFailsWhenContentTypeNotMatchingFileContents(t *testing.T) {
-	r := Resizer{}
-	inParams := resizeParams{Location: "/path/to/img", Width: 64, ContentType: "image/jpeg"}
-	inFile := testImage(t) // this is a PNG file; the image scaler should fail fast in this case
-	req, err := http.NewRequest("GET", "/foo", nil)
-	require.NoError(t, err)
-
-	_, cmd, err := r.tryResizeImage(
-		req,
-		inFile,
-		os.Stderr,
-		&inParams,
-		int64(config.DefaultImageResizerConfig.MaxFilesize),
-		config.DefaultImageResizerConfig,
-	)
-
-	require.NoError(t, err)
-	require.Error(t, cmd.Wait(), "Expected to fail due to content-type mismatch")
-}
+//func TestTryResizeImageFailsWhenContentTypeNotMatchingFileContents(t *testing.T) {
+//	r := Resizer{}
+//	inParams := resizeParams{Location: "/path/to/img", Width: 64, ContentType: "image/jpeg"}
+//	inFile := testImage(t) // this is a PNG file; the image scaler should fail fast in this case
+//	req, err := http.NewRequest("GET", "/foo", nil)
+//	require.NoError(t, err)
+//
+//	_, cmd, err := r.tryResizeImage(
+//		req,
+//		inFile,
+//		os.Stderr,
+//		&inParams,
+//		int64(config.DefaultImageResizerConfig.MaxFilesize),
+//		config.DefaultImageResizerConfig,
+//	)
+//
+//	require.NoError(t, err)
+//	require.Error(t, cmd.Wait(), "Expected to fail due to content-type mismatch")
+//}
 
 func TestServeImage(t *testing.T) {
 	inFile := testImage(t)

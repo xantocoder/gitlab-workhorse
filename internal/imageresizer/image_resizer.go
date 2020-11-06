@@ -126,7 +126,7 @@ var (
 				0.8,   /* 800ms */
 			},
 		},
-		[]string{"content_type", "width"},
+		[]string{"width"},
 	)
 )
 
