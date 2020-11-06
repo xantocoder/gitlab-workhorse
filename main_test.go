@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"image/png"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -369,24 +368,6 @@ func TestArtifactsGetSingleFile(t *testing.T) {
 	require.Equal(t, 200, resp.StatusCode, "GET %q: status code", resourcePath)
 	require.Equal(t, fileContents, string(body), "GET %q: response body", resourcePath)
 	requireNginxResponseBuffering(t, "no", resp, "GET %q: nginx response buffering", resourcePath)
-}
-
-func TestImageResizing(t *testing.T) {
-	imageLocation := `testdata/image.png`
-	requestedWidth := 40
-	imageFormat := "image/png"
-	jsonParams := fmt.Sprintf(`{"Location":"%s","Width":%d, "ContentType":"%s"}`, imageLocation, requestedWidth, imageFormat)
-	resourcePath := "/uploads/-/system/user/avatar/123/avatar.png?width=40"
-
-	resp, body, err := doSendDataRequest(resourcePath, "send-scaled-img", jsonParams)
-	require.NoError(t, err, "send resize request")
-	require.Equal(t, 200, resp.StatusCode, "GET %q: body: %s", resourcePath, body)
-
-	img, err := png.Decode(bytes.NewReader(body))
-	require.NoError(t, err, "decode resized image")
-
-	bounds := img.Bounds()
-	require.Equal(t, requestedWidth, bounds.Max.X-bounds.Min.X, "width after resizing")
 }
 
 func TestSendURLForArtifacts(t *testing.T) {
