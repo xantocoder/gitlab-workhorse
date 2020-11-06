@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"image"
 	"image/png"
 	"net/http"
 	"net/http/httptest"
@@ -19,6 +20,8 @@ import (
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/testhelper"
 )
 
+const imagePath = "../../testdata/image.png"
+
 func TestMain(m *testing.M) {
 	if err := testhelper.BuildExecutables(); err != nil {
 		log.WithError(err).Fatal()
@@ -27,10 +30,8 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func requestScaledImage(t *testing.T, requestURL string, httpHeaders http.Header, params resizeParams, cfg config.ImageResizerConfig) *httptest.ResponseRecorder {
+func requestScaledImage(t *testing.T, httpHeaders http.Header, params resizeParams, cfg config.ImageResizerConfig) *httptest.ResponseRecorder {
 	requestHandler := func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "GET", r.Method)
-
 		paramsJSON := encodeParams(t, &params)
 		NewResizer(config.Config{ImageResizerConfig: cfg}).Inject(w, r, paramsJSON)
 	}
@@ -41,7 +42,7 @@ func requestScaledImage(t *testing.T, requestURL string, httpHeaders http.Header
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	httpRequest, err := http.NewRequest("GET", server.URL+requestURL, nil)
+	httpRequest, err := http.NewRequest("GET", server.URL+"/image", nil)
 	require.NoError(t, err)
 	if httpHeaders != nil {
 		httpRequest.Header = httpHeaders
@@ -54,45 +55,46 @@ func requestScaledImage(t *testing.T, requestURL string, httpHeaders http.Header
 
 func TestRequestScaledImageFromPath(t *testing.T) {
 	cfg := config.DefaultImageResizerConfig
-	params := resizeParams{Location: "../../testdata/image.png", ContentType: "image/png", Width: 64}
-	resp := requestScaledImage(t, "/image", nil, params, cfg)
+	params := resizeParams{Location: imagePath, ContentType: "image/png", Width: 64}
 
+	resp := requestScaledImage(t, nil, params, cfg)
 	require.Equal(t, http.StatusOK, resp.Code)
 
-	img, err := png.Decode(bytes.NewReader(resp.Body.Bytes()))
-	require.NoError(t, err, "decode resized image")
-
-	bounds := img.Bounds()
+	bounds := imageFromResponse(t, resp).Bounds()
 	require.Equal(t, int(params.Width), bounds.Max.X-bounds.Min.X, "wrong width after resizing")
 }
 
 func TestServeOriginalImageWhenSourceImageTooLarge(t *testing.T) {
-	originalImage, err := png.Decode(testImage(t))
-	require.NoError(t, err, "decode original image")
-
+	originalImage := testImage(t)
 	cfg := config.ImageResizerConfig{MaxScalerProcs: 1, MaxFilesize: 1}
-	params := resizeParams{Location: "../../testdata/image.png", ContentType: "image/png", Width: 64}
-	resp := requestScaledImage(t, "/image", nil, params, cfg)
+	params := resizeParams{Location: imagePath, ContentType: "image/png", Width: 64}
 
+	resp := requestScaledImage(t, nil, params, cfg)
 	require.Equal(t, http.StatusOK, resp.Code)
 
-	img, err := png.Decode(bytes.NewReader(resp.Body.Bytes()))
-	require.NoError(t, err, "decode resized image")
-
+	img := imageFromResponse(t, resp)
 	require.Equal(t, originalImage.Bounds(), img.Bounds(), "expected original image size")
+}
+
+func TestFailFastOnOpenStreamFailure(t *testing.T) {
+	cfg := config.DefaultImageResizerConfig
+	params := resizeParams{Location: "does_not_exist.png", ContentType: "image/png", Width: 64}
+	resp := requestScaledImage(t, nil, params, cfg)
+
+	require.Equal(t, http.StatusInternalServerError, resp.Code)
 }
 
 func TestFailFastOnContentTypeMismatch(t *testing.T) {
 	cfg := config.DefaultImageResizerConfig
-	params := resizeParams{Location: "../../testdata/image.png", ContentType: "image/jpeg", Width: 64}
-	resp := requestScaledImage(t, "/image", nil, params, cfg)
+	params := resizeParams{Location: imagePath, ContentType: "image/jpeg", Width: 64}
+	resp := requestScaledImage(t, nil, params, cfg)
 
 	require.Equal(t, http.StatusInternalServerError, resp.Code)
 }
 
 func TestUnpackParametersReturnsParamsInstanceForValidInput(t *testing.T) {
 	r := Resizer{}
-	inParams := resizeParams{Location: "/path/to/img", Width: 64, ContentType: "image/png"}
+	inParams := resizeParams{Location: imagePath, Width: 64, ContentType: "image/png"}
 
 	outParams, err := r.unpackParameters(encodeParams(t, &inParams))
 
@@ -111,7 +113,7 @@ func TestUnpackParametersReturnsErrorWhenLocationBlank(t *testing.T) {
 
 func TestUnpackParametersReturnsErrorWhenContentTypeBlank(t *testing.T) {
 	r := Resizer{}
-	inParams := resizeParams{Location: "/path/to/img", Width: 64, ContentType: ""}
+	inParams := resizeParams{Location: imagePath, Width: 64, ContentType: ""}
 
 	_, err := r.unpackParameters(encodeParams(t, &inParams))
 
@@ -128,8 +130,18 @@ func encodeParams(t *testing.T, p *resizeParams) string {
 	return base64.StdEncoding.EncodeToString(json)
 }
 
-func testImage(t *testing.T) *os.File {
-	f, err := os.Open("../../testdata/image.png")
+func testImage(t *testing.T) image.Image {
+	f, err := os.Open(imagePath)
 	require.NoError(t, err)
-	return f
+
+	image, err := png.Decode(f)
+	require.NoError(t, err, "decode original image")
+
+	return image
+}
+
+func imageFromResponse(t *testing.T, resp *httptest.ResponseRecorder) image.Image {
+	img, err := png.Decode(bytes.NewReader(resp.Body.Bytes()))
+	require.NoError(t, err, "decode resized image")
+	return img
 }
