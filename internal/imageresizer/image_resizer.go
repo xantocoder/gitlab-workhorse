@@ -34,9 +34,8 @@ type Resizer struct {
 }
 
 type resizeParams struct {
-	Location    string
-	ContentType string
-	Width       uint
+	Location string
+	Width    uint
 }
 
 type processCounter struct {
@@ -178,7 +177,6 @@ func (r *Resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 			"bytes_written":     bytesWritten,
 			"duration_s":        time.Since(start).Seconds(),
 			"target_width":      params.Width,
-			"content_type":      params.ContentType,
 			"original_filesize": fileSize,
 		}
 	}
@@ -214,7 +212,7 @@ func (r *Resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 	}
 
 	widthLabelVal := strconv.Itoa(int(params.Width))
-	imageResizeDurations.WithLabelValues(params.ContentType, widthLabelVal).Observe(time.Since(start).Seconds())
+	imageResizeDurations.WithLabelValues(widthLabelVal).Observe(time.Since(start).Seconds())
 
 	logger.WithFields(*logFields(bytesWritten)).Printf("ImageResizer: Success")
 
@@ -245,10 +243,6 @@ func (r *Resizer) unpackParameters(paramsData string) (*resizeParams, error) {
 
 	if params.Location == "" {
 		return nil, fmt.Errorf("ImageResizer: Location is empty")
-	}
-
-	if params.ContentType == "" {
-		return nil, fmt.Errorf("ImageResizer: ContentType must be set")
 	}
 
 	return &params, nil
