@@ -17,6 +17,7 @@ import (
 	"gitlab.com/gitlab-org/gitlab-workhorse/internal/config"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 
 	"gitlab.com/gitlab-org/labkit/correlation"
 	"gitlab.com/gitlab-org/labkit/log"
@@ -76,6 +77,7 @@ var httpClient = &http.Client{
 const (
 	namespace = "gitlab_workhorse"
 	subsystem = "image_resize"
+	logPrefix = "imgresizer."
 )
 
 var (
@@ -155,12 +157,16 @@ func (r *Resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 
 	start := time.Now()
 	logger := log.ContextLogger(req.Context())
+	logInfo := logInfoFn(logger, w, req, start)
+	logError := logErrorFn(w, req, start)
+	render500 := render500Fn(w, req, start)
+
 	params, err := r.unpackParameters(paramsData)
 	if err != nil {
 		// This means the response header coming from Rails was malformed; there is no way
 		// to sensibly recover from this other than failing fast
 		status = statusRequestFailure
-		helper.Fail500(w, req, fmt.Errorf("ImageResizer: Failed reading image resize params: %v", err))
+		render500(fmt.Errorf("read image resize params: %v", err), 0, params, 0)
 		return
 	}
 
@@ -168,27 +174,17 @@ func (r *Resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 	if err != nil {
 		// This means we cannot even read the input image; fail fast.
 		status = statusRequestFailure
-		helper.Fail500(w, req, fmt.Errorf("ImageResizer: Failed opening image data stream: %v", err))
+		render500(fmt.Errorf("open image data stream: %v", err), 0, params, fileSize)
 		return
 	}
 	defer sourceImageReader.Close()
-
-	logFields := func(bytesWritten int64) *log.Fields {
-		return &log.Fields{
-			"bytes_written":     bytesWritten,
-			"duration_s":        time.Since(start).Seconds(),
-			"target_width":      params.Width,
-			"content_type":      params.ContentType,
-			"original_filesize": fileSize,
-		}
-	}
 
 	// We first attempt to rescale the image; if this should fail for any reason, imageReader
 	// will point to the original image, i.e. we render it unchanged.
 	imageReader, resizeCmd, err := r.tryResizeImage(req, sourceImageReader, logger.Writer(), params, fileSize, r.Config.ImageResizerConfig)
 	if err != nil {
 		// Something failed, but we can still write out the original image, so don't return early.
-		helper.LogErrorWithFields(req, err, *logFields(0))
+		logError(err, 0, params, fileSize)
 	}
 	defer helper.CleanUpProcessGroup(resizeCmd)
 
@@ -201,7 +197,7 @@ func (r *Resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 		if bytesWritten <= 0 {
 			helper.Fail500(w, req, err)
 		} else {
-			helper.LogErrorWithFields(req, err, *logFields(bytesWritten))
+			logError(err, bytesWritten, params, fileSize)
 		}
 		return
 	}
@@ -209,14 +205,14 @@ func (r *Resizer) Inject(w http.ResponseWriter, req *http.Request, paramsData st
 	// This means we served the original image because rescaling failed; this is a soft failure
 	if resizeCmd == nil {
 		status = statusScalingFailure
-		logger.WithFields(*logFields(bytesWritten)).Printf("ImageResizer: Served original")
+		logInfo("served original", bytesWritten, params, fileSize)
 		return
 	}
 
 	widthLabelVal := strconv.Itoa(int(params.Width))
 	imageResizeDurations.WithLabelValues(params.ContentType, widthLabelVal).Observe(time.Since(start).Seconds())
 
-	logger.WithFields(*logFields(bytesWritten)).Printf("ImageResizer: Success")
+	logInfo("success", bytesWritten, params, fileSize)
 
 	status = statusSuccess
 }
@@ -244,11 +240,11 @@ func (r *Resizer) unpackParameters(paramsData string) (*resizeParams, error) {
 	}
 
 	if params.Location == "" {
-		return nil, fmt.Errorf("ImageResizer: Location is empty")
+		return nil, fmt.Errorf("'Location' not set")
 	}
 
 	if params.ContentType == "" {
-		return nil, fmt.Errorf("ImageResizer: ContentType must be set")
+		return nil, fmt.Errorf("'ContentType' must be set")
 	}
 
 	return &params, nil
@@ -257,11 +253,11 @@ func (r *Resizer) unpackParameters(paramsData string) (*resizeParams, error) {
 // Attempts to rescale the given image data, or in case of errors, falls back to the original image.
 func (r *Resizer) tryResizeImage(req *http.Request, reader io.Reader, errorWriter io.Writer, params *resizeParams, fileSize int64, cfg config.ImageResizerConfig) (io.Reader, *exec.Cmd, error) {
 	if fileSize > int64(cfg.MaxFilesize) {
-		return reader, nil, fmt.Errorf("ImageResizer: %db exceeds maximum file size of %db", fileSize, cfg.MaxFilesize)
+		return reader, nil, fmt.Errorf("%d bytes exceeds maximum file size of %d bytes", fileSize, cfg.MaxFilesize)
 	}
 
 	if !r.numScalerProcs.tryIncrement(int32(cfg.MaxScalerProcs)) {
-		return reader, nil, fmt.Errorf("ImageResizer: too many running scaler processes (%d / %d)", r.numScalerProcs.n, cfg.MaxScalerProcs)
+		return reader, nil, fmt.Errorf("too many running scaler processes (%d / %d)", r.numScalerProcs.n, cfg.MaxScalerProcs)
 	}
 
 	ctx := req.Context()
@@ -272,7 +268,7 @@ func (r *Resizer) tryResizeImage(req *http.Request, reader io.Reader, errorWrite
 
 	resizeCmd, resizedImageReader, err := startResizeImageCommand(ctx, reader, errorWriter, params)
 	if err != nil {
-		return reader, nil, fmt.Errorf("ImageResizer: failed forking into scaler process: %w", err)
+		return reader, nil, fmt.Errorf("fork into scaler process: %w", err)
 	}
 	return resizedImageReader, resizeCmd, nil
 }
@@ -321,7 +317,7 @@ func openFromURL(location string) (io.ReadCloser, int64, error) {
 	if res.StatusCode != http.StatusOK {
 		res.Body.Close()
 
-		return nil, 0, fmt.Errorf("ImageResizer: cannot read data from %q: %d %s",
+		return nil, 0, fmt.Errorf("cannot read data from %q: %d %s",
 			location, res.StatusCode, res.Status)
 	}
 
@@ -360,4 +356,38 @@ func (c *processCounter) tryIncrement(maxScalerProcs int32) bool {
 func (c *processCounter) decrement() {
 	atomic.AddInt32(&c.n, -1)
 	imageResizeProcesses.Set(float64(c.n))
+}
+
+func logFields(startTime time.Time, params *resizeParams, bytesWritten int64, fileSize int64) *log.Fields {
+	var targetWidth, contentType string
+	if params != nil {
+		targetWidth = fmt.Sprint(params.Width)
+		contentType = fmt.Sprint(params.ContentType)
+	}
+	return &log.Fields{
+		"subsystem":                     "imageresizer",
+		"written_bytes":                 bytesWritten,
+		"duration_s":                    time.Since(startTime).Seconds(),
+		logPrefix + "target_width":      targetWidth,
+		logPrefix + "content_type":      contentType,
+		logPrefix + "original_filesize": fileSize,
+	}
+}
+
+func logInfoFn(logger *logrus.Entry, w http.ResponseWriter, req *http.Request, startTime time.Time) func(msg string, bytesWritten int64, p *resizeParams, fileSize int64) {
+	return func(msg string, bytesWritten int64, params *resizeParams, fileSize int64) {
+		logger.WithFields(*logFields(startTime, params, bytesWritten, fileSize)).Printf(msg)
+	}
+}
+
+func logErrorFn(w http.ResponseWriter, req *http.Request, startTime time.Time) func(err error, bytesWritten int64, p *resizeParams, fileSize int64) {
+	return func(err error, bytesWritten int64, params *resizeParams, fileSize int64) {
+		helper.LogErrorWithFields(req, err, *logFields(startTime, params, bytesWritten, fileSize))
+	}
+}
+
+func render500Fn(w http.ResponseWriter, req *http.Request, startTime time.Time) func(err error, bytesWritten int64, p *resizeParams, fileSize int64) {
+	return func(err error, bytesWritten int64, params *resizeParams, fileSize int64) {
+		helper.Fail500WithFields(w, req, err, *logFields(startTime, params, bytesWritten, fileSize))
+	}
 }
