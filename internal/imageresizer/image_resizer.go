@@ -284,7 +284,6 @@ func startResizeImageCommand(ctx context.Context, imageReader io.Reader, errorWr
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Env = []string{
 		"GL_RESIZE_IMAGE_WIDTH=" + strconv.Itoa(int(params.Width)),
-		"GL_RESIZE_IMAGE_CONTENT_TYPE=" + params.ContentType,
 	}
 	cmd.Env = envInjector(ctx, cmd.Env)
 
