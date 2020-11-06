@@ -337,7 +337,7 @@ func openFromURL(location string) (*imageFile, error) {
 	switch res.StatusCode {
 	case http.StatusOK, http.StatusNotModified:
 		// Extract headers for conditional GETs from response.
-		lastModified, err := time.Parse(http.TimeFormat, res.Header.Get("Last-Modified"))
+		lastModified, err := http.ParseTime(res.Header.Get("Last-Modified"))
 		if err != nil {
 			// This is unlikely to happen, coming from an object storage provider.
 			lastModified = time.Now().UTC()
