@@ -94,7 +94,7 @@ func TestTryResizeImageFailsWhenImageFormatNotAllowed(t *testing.T) {
 	inParams := resizeParams{Location: "/path/to/img", Width: 64}
 
 	// create an SVG but save it as PNG
-	tempFile, err := ioutil.TempFile("", "uploads")
+	tempFile, err := ioutil.TempFile("", "image.*.png")
 	require.NoError(t, err)
 	defer tempFile.Close()
 	defer os.Remove(tempFile.Name())
@@ -106,8 +106,7 @@ func TestTryResizeImageFailsWhenImageFormatNotAllowed(t *testing.T) {
 	_, err = io.Copy(tempFile, svg_image)
 	require.NoError(t, err)
 
-	inFile := svg_image // we expect the scale to detect fake PNG and fail
-
+	inFile := tempFile // we expect the scale to detect fake PNG and fail
 	req, err := http.NewRequest("GET", "/foo", nil)
 	require.NoError(t, err)
 
@@ -122,6 +121,42 @@ func TestTryResizeImageFailsWhenImageFormatNotAllowed(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Error(t, cmd.Wait(), "Expected to fail due to image format not allowed")
+}
+
+func TestTryResizeImageSuccessWhenWrongExtensionButAllowedFormat(t *testing.T) {
+	r := Resizer{}
+	inParams := resizeParams{Location: "/path/to/img", Width: 64}
+
+	// create an PNG but save it as JPEG
+	tempFile, err := ioutil.TempFile("", "image.*.jpeg")
+	require.NoError(t, err)
+	defer tempFile.Close()
+	defer os.Remove(tempFile.Name())
+
+	png_image, err := os.Open("../../testdata/image.png")
+	require.NoError(t, err)
+	defer png_image.Close()
+
+	_, err = io.Copy(tempFile, png_image)
+	require.NoError(t, err)
+
+	inFile := tempFile // we expect the scaler to allow resizing PNG with wrong extension
+	req, err := http.NewRequest("GET", "/foo", nil)
+	require.NoError(t, err)
+
+	reader, cmd, err := r.tryResizeImage(
+		req,
+		inFile,
+		os.Stderr,
+		&inParams,
+		int64(config.DefaultImageResizerConfig.MaxFilesize),
+		config.DefaultImageResizerConfig,
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.NotNil(t, reader)
+	require.NotEqual(t, inFile, reader)
 }
 
 func TestServeImage(t *testing.T) {
